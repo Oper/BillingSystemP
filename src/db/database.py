@@ -1,16 +1,20 @@
 from datetime import datetime
 
-from sqlalchemy import func
-from sqlalchemy.orm import Mapped, mapped_column, declared_attr, sessionmaker, declarative_base
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy import func, create_engine
+from sqlalchemy.orm import Mapped, mapped_column, declared_attr, DeclarativeBase, sessionmaker
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 
-Base = declarative_base()
-DATABASE_URL = 'sqlite+aiosqlite:///data/dbase.db'
-engine = create_async_engine(DATABASE_URL, echo=True)
-AsyncSessionLocal = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+#Base = declarative_base()
+DATABASE_URL = 'sqlite:///data/dbase.db'
+engine = create_engine(DATABASE_URL, echo=False)
+SessionLocal = sessionmaker(
+    autocommit=False,
+    autoflush=False,
+    bind=engine,
+)
 
 
-class BaseModel(Base):
+class BaseModel(DeclarativeBase):
     __abstract__ = True
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
@@ -22,10 +26,10 @@ class BaseModel(Base):
         return cls.__name__.lower() + 's'
 
 
-async def get_db():
+def get_db():
     """Предоставляет асинхронную сессию для работы с базой данных."""
-    async with AsyncSessionLocal() as session:
+    with SessionLocal() as session:
         try:
             yield session
         finally:
-            await session.close()
+            session.close()

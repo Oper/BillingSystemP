@@ -29,3 +29,12 @@ class Service(BaseModel):
 
     def __repr__(self):
         return f'Service (name={self.service_name}, price={self.service_price})'
+
+class Tariff(BaseModel):
+    __tablename__='tariffs'
+    name: Mapped[str] = mapped_column(unique=True, nullable=False)
+    monthly_price: Mapped[float] = mapped_column(nullable=False)
+    is_active: Mapped[bool] = mapped_column(default=True)
+
+    def __repr__(self):
+        return f"Tariff(id={self.id}, name='{self.name}', price={self.monthly_price})"
