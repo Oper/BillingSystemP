@@ -46,7 +46,7 @@ def delete_client(db: AsyncSession, client_id: int) -> bool:
         stmt = delete(Client).where(Client.id == client_id)
 
         # 2. Выполняем запрос
-        result = db.execute(stmt)
+        db.execute(stmt)
 
         # 3. Фиксируем изменения
         db.commit()
