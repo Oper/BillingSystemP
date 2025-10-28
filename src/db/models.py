@@ -9,7 +9,7 @@ from src.db.database import BaseModel
 class Client(BaseModel):
     """Модель клиента.
     """
-    __tablename__='clients'
+    __tablename__ = 'clients'
     full_name: Mapped[str] = mapped_column(unique=True)
     address: Mapped[str] = mapped_column(unique=True)
     phone_number: Mapped[str] = mapped_column(unique=True)
@@ -24,16 +24,17 @@ class Client(BaseModel):
 
 class Service(BaseModel):
     """Модель услуг TODO"""
-    __tablename__='services'
+    __tablename__ = 'services'
     service_name: Mapped[str] = mapped_column(unique=True)
     service_price: Mapped[float] = mapped_column(default=0.0)
 
     def __repr__(self):
         return f'Service (name={self.service_name}, price={self.service_price})'
 
+
 class Tariff(BaseModel):
     """Модель тарифов"""
-    __tablename__='tariffs'
+    __tablename__ = 'tariffs'
     name: Mapped[str] = mapped_column(unique=True, nullable=False)
     monthly_price: Mapped[float] = mapped_column(nullable=False)
     is_active: Mapped[bool] = mapped_column(default=True)

@@ -3,6 +3,7 @@ from tkinter import ttk, messagebox
 from tkinter.constants import END
 
 from db.crud import get_client_by_id, delete_client
+from src.models.clients import ClientBase
 from src.db.crud import create_client, search_clients, get_clients, get_tariffs
 from src.db.database import get_db, init_db
 from src.models.clients import ClientCreate
@@ -73,7 +74,7 @@ class BillingSysemApp(tkinter.Tk):
         ttk.Button(frame, text="Возобновить").pack(side="left", padx=5)
         ttk.Separator(frame, orient="vertical", style="black.TSeparator").pack(side="left", padx=5, pady=5)
         ttk.Button(frame, text="Добавить клиента", command=snow_window_abonent_add).pack(side="left", padx=5)
-        ttk.Button(frame, text="Редактировать клиента").pack(side="left", padx=5)
+        ttk.Button(frame, text="Редактировать клиента", command=self._edit_client).pack(side="left", padx=5)
         ttk.Button(frame, text="Удалить клиента", command=self._delete_client).pack(side="left", padx=5)
         # Загрузка данных при старте
         self._load_clients()
@@ -177,11 +178,17 @@ class BillingSysemApp(tkinter.Tk):
 
         self._search_clients()
 
-    def _edit_client(self, client_id):
+    def _edit_client(self):
         """Обрабатывает нажатие кнопки 'Редактировать клиента'."""
-        pass
+        client_id = self.client_tree.item(self.client_tree.focus()).get('values')[0]
+        try:
+            for db in get_db():
+                # client = ClientUpdate(get_client_by_id(db, client_id))
+                print(get_client_by_id(db, client_id))
+        except Exception as e:
+            print(e)
 
-    def _delete_tariff(self, tariff_id):
+    def _delete_tariff(self):
         """Обрабатывает нажатие кнопки 'Удалить тариф'."""
         pass
 
@@ -217,7 +224,7 @@ class WindowAddClient(tkinter.Toplevel):
         self.balance_entry.grid(row=4, column=1, padx=5, pady=5)
 
         # Кнопка добавления
-        ttk.Button(self, text="Добавить Клиента", command=self._add_client).grid(
+        ttk.Button(self, text="OK", command=self._add_client).grid(
             row=5, column=0, columnspan=2, pady=10
         )
         ttk.Button(self, text="Очистить поля", command=self._clear_add_fields).grid(
@@ -248,6 +255,13 @@ class WindowAddClient(tkinter.Toplevel):
 
         except Exception as e:
             messagebox.showerror("Ошибка добавления", f"Не удалось добавить клиента:\n{e}")
+
+    def _update_client(self, client: ClientBase):
+        """Редактирование Клиента в дополнительном окне.
+
+        :param client: Данные выбранного Клиента в главном окне.
+        """
+        pass
 
     def _clear_add_fields(self):
         """Очищает поля ввода после добавления."""

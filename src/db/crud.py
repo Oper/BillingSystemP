@@ -35,9 +35,9 @@ def create_client(db: AsyncSession, client_data: ClientCreate) -> Client:
 
 def delete_client(db: AsyncSession, client_id: int) -> bool:
     """
-        Асинхронно удаляет клиента в базе данных.
+        Синхронно удаляет клиента в базе данных.
 
-        :param db: Активная асинхронная сессия базы данных.
+        :param db: Активная синхронная сессия базы данных.
         :param client_id: Идентификатор клиента.
         :return: True, если клиент был успешно удален, False в противном случае.
         """
@@ -62,9 +62,9 @@ def delete_client(db: AsyncSession, client_id: int) -> bool:
 
 def get_client_by_id(db: AsyncSession, client_id: int) -> Optional[Client]:
     """
-    Асинхронно получает одного клиента по его уникальному ID.
+    Синхронно получает одного клиента по его уникальному ID.
 
-    :param db: Активная асинхронная сессия базы данных.
+    :param db: Активная синхронная сессия базы данных.
     :param client_id: Уникальный ID клиента.
     :return: Объект клиента или None, если клиент не найден.
     """
@@ -78,9 +78,9 @@ def get_client_by_id(db: AsyncSession, client_id: int) -> Optional[Client]:
 
 def update_client(db: AsyncSession, client_id: int, client_data: ClientUpdate) -> Optional[Client]:
     """
-    Асинхронно обновляет данные существующего клиента.
+    Синхронно обновляет данные существующего клиента.
 
-    :param db: Активная асинхронная сессия базы данных.
+    :param db: Активная синхронная сессия базы данных.
     :param client_id: ID клиента, которого нужно обновить.
     :param client_data: Объект Pydantic с новыми данными (только те, что нужно изменить).
     :return: Обновленный объект клиента или None, если клиент не найден.
@@ -108,14 +108,14 @@ def update_client(db: AsyncSession, client_id: int, client_data: ClientUpdate) -
 
 def get_clients(db: AsyncSession, skip: int = 0, limit: int = 100) -> List[Client]:
     """
-    Асинхронно получает список клиентов с возможностью пагинации.
+    Синхронно получает список клиентов с возможностью пагинации.
 
-    :param db: Активная асинхронная сессия базы данных.
+    :param db: Активная синхронная сессия базы данных.
     :param skip: Количество записей, которое нужно пропустить (смещение).
     :param limit: Максимальное количество записей для возврата.
     :return: Список объектов клиентов (моделей SQLAlchemy).
     """
-    # 1. Формируем асинхронный запрос: SELECT * FROM clients
+    # 1. Формируем синхронный запрос: SELECT * FROM clients
     stmt = select(Client).offset(skip).limit(limit)
 
     # 2. Выполняем запрос
