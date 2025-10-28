@@ -4,9 +4,7 @@ from typing import Optional
 from pydantic import BaseModel, Field
 
 class ClientBase(BaseModel):
-    """Базовая модель для данных клиента.
-
-    """
+    """Базовая модель для данных клиента."""
     full_name: str = Field(..., description='Полное ФИО клиента.')
     address: str = Field(..., description='Адрес подключения.')
     phone_number: Optional[str] = Field(..., description='Номер телефона.')

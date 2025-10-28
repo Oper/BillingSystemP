@@ -2,9 +2,9 @@ import tkinter
 from tkinter import ttk, messagebox
 from tkinter.constants import END
 
-from db.crud import create_client, search_clients, get_clients, get_tariffs
-from db.database import get_db
-from models.clients import ClientCreate
+from src.db.crud import create_client, search_clients, get_clients, get_tariffs
+from src.db.database import get_db, init_db
+from src.models.clients import ClientCreate
 
 
 def snow_window_abonent_add():
@@ -22,7 +22,7 @@ class BillingSysemApp(tkinter.Tk):
         self.geometry("800x600")
 
         # Инициализация БД
-        # init_db()
+        init_db()
 
         # Создание вкладок (Notebook)
         notebook = ttk.Notebook(self)
@@ -78,14 +78,7 @@ class BillingSysemApp(tkinter.Tk):
         self._load_clients()
 
 
-    def _clear_add_fields(self):
-        """Очищает поля ввода после добавления."""
-        self.full_name_entry.delete(0, END)
-        self.address_entry.delete(0, END)
-        self.phone_entry.delete(0, END)
-        self.tariff_entry.delete(0, END)
-        self.balance_entry.delete(0, END)
-        self.balance_entry.insert(0, "0.0")
+
 
     def _search_clients(self):
         """Выполняет поиск клиентов."""
@@ -93,6 +86,8 @@ class BillingSysemApp(tkinter.Tk):
         if not search_term:
             self._load_clients()
             return
+
+        clients = None
 
         for db in get_db():
             clients = search_clients(db, search_term)
@@ -159,7 +154,7 @@ class BillingSysemApp(tkinter.Tk):
         # 1. Очистка Treeview
         for item in self.tariffs_tree.get_children():
             self.tariffs_tree.delete(item)
-
+        tariffs = None
         # 2. Получение данных
         for db in get_db():
             tariffs = get_tariffs(db)
@@ -170,10 +165,11 @@ class BillingSysemApp(tkinter.Tk):
 
 
 class WindowAddClient(tkinter.Tk):
+    """Класс для вызова дополнительного окна добавления клиента."""
     def __init__(self):
         super().__init__()
         self.title('Добавить клиента')
-        self.geometry('400x400')
+        self.geometry('400x300')
 
         # Заголовки и поля ввода
         ttk.Label(self, text="ФИО:").grid(row=0, column=0, padx=5, pady=5, sticky="w")
@@ -230,6 +226,17 @@ class WindowAddClient(tkinter.Tk):
 
         except Exception as e:
             messagebox.showerror("Ошибка добавления", f"Не удалось добавить клиента:\n{e}")
+
+
+    def _clear_add_fields(self):
+        """Очищает поля ввода после добавления."""
+        self.full_name_entry.delete(0, END)
+        self.address_entry.delete(0, END)
+        self.phone_entry.delete(0, END)
+        self.tariff_entry.delete(0, END)
+        self.balance_entry.delete(0, END)
+        self.balance_entry.insert(0, "0.0")
+
 
 # --- Запуск приложения ---
 if __name__ == "__main__":

@@ -33,3 +33,6 @@ def get_db():
             yield session
         finally:
             session.close()
+
+def init_db():
+    BaseModel.metadata.create_all(bind=engine)

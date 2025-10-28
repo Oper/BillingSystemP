@@ -23,6 +23,7 @@ class Client(BaseModel):
 
 
 class Service(BaseModel):
+    """Модель услуг TODO"""
     __tablename__='services'
     service_name: Mapped[str] = mapped_column(unique=True)
     service_price: Mapped[float] = mapped_column(default=0.0)
@@ -31,6 +32,7 @@ class Service(BaseModel):
         return f'Service (name={self.service_name}, price={self.service_price})'
 
 class Tariff(BaseModel):
+    """Модель тарифов"""
     __tablename__='tariffs'
     name: Mapped[str] = mapped_column(unique=True, nullable=False)
     monthly_price: Mapped[float] = mapped_column(nullable=False)
