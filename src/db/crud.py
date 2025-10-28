@@ -42,16 +42,21 @@ def delete_client(db: AsyncSession, client_id: int) -> bool:
         """
     # 1. Формируем запрос на удаление
     # DELETE FROM clients WHERE id = :client_id
-    stmt = delete(Client).where(Client.id == client_id)
+    try:
+        stmt = delete(Client).where(Client.id == client_id)
 
-    # 2. Выполняем запрос
-    result = db.execute(stmt)
+        # 2. Выполняем запрос
+        result = db.execute(stmt)
 
-    # 3. Фиксируем изменения
-    db.commit()
+        # 3. Фиксируем изменения
+        db.commit()
 
-    # rowcount > 0 означает, что была удалена хотя бы одна запись
-    return result.rowcount > 0
+        # rowcount > 0 означает, что была удалена хотя бы одна запись
+        return True
+
+    except SQLAlchemyError as e:
+        db.rollback()
+        return False
 
 
 def get_client_by_id(db: AsyncSession, client_id: int) -> Optional[Client]:
