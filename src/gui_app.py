@@ -2,6 +2,7 @@ import tkinter
 from tkinter import ttk, messagebox
 from tkinter.constants import END
 
+from db.crud import get_client_by_id, delete_client
 from src.db.crud import create_client, search_clients, get_clients, get_tariffs
 from src.db.database import get_db, init_db
 from src.models.clients import ClientCreate
@@ -73,7 +74,7 @@ class BillingSysemApp(tkinter.Tk):
         ttk.Separator(frame, orient="vertical", style="black.TSeparator").pack(side="left", padx=5, pady=5)
         ttk.Button(frame, text="Добавить клиента", command=snow_window_abonent_add).pack(side="left", padx=5)
         ttk.Button(frame, text="Редактировать клиента").pack(side="left", padx=5)
-        ttk.Button(frame, text="Удалить клиента").pack(side="left", padx=5)
+        ttk.Button(frame, text="Удалить клиента", command=self._delete_client).pack(side="left", padx=5)
         # Загрузка данных при старте
         self._load_clients()
 
@@ -159,8 +160,33 @@ class BillingSysemApp(tkinter.Tk):
         # 3. Отображение
         self._display_clients(tariffs)
 
+    def _delete_client(self):
+        """Обрабатывает нажатие кнопки 'Удалить клиента'."""
+        client_id = self.client_tree.item(self.client_tree.focus()).get('values')[0]
+        try:
+            for db in get_db():
+                client = get_client_by_id(db, client_id)
+                delete_client(db, client_id)
+                messagebox.showinfo(
+                    "Успех",
+                    f"Клиент {client.full_name} (ID: {client.id}) успешно Удален!"
+                )
+                break
+        except Exception as e:
+            messagebox.showerror("Ошибка удаления", f"Не удалось удалить клиента:\n{e}")
 
-class WindowAddClient(tkinter.Tk):
+        self._search_clients()
+
+    def _edit_client(self, client_id):
+        """Обрабатывает нажатие кнопки 'Редактировать клиента'."""
+        pass
+
+    def _delete_tariff(self, tariff_id):
+        """Обрабатывает нажатие кнопки 'Удалить тариф'."""
+        pass
+
+
+class WindowAddClient(tkinter.Toplevel):
     """Класс для вызова дополнительного окна добавления клиента."""
 
     def __init__(self):
@@ -194,6 +220,9 @@ class WindowAddClient(tkinter.Tk):
         ttk.Button(self, text="Добавить Клиента", command=self._add_client).grid(
             row=5, column=0, columnspan=2, pady=10
         )
+        ttk.Button(self, text="Очистить поля", command=self._clear_add_fields).grid(
+            row=6, column=0, columnspan=2, pady=10
+        )
 
     def _add_client(self):
         """Обрабатывает нажатие кнопки "Добавить Клиента"."""
@@ -214,9 +243,8 @@ class WindowAddClient(tkinter.Tk):
                     f"Клиент {new_client.full_name} (ID: {new_client.id}) успешно добавлен!"
                 )
                 break
-            # 3. Очистка полей и обновление списка
-            self._clear_add_fields()
-            # self._load_clients()
+
+            self.destroy()
 
         except Exception as e:
             messagebox.showerror("Ошибка добавления", f"Не удалось добавить клиента:\n{e}")

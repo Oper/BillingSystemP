@@ -32,6 +32,7 @@ def create_client(db: AsyncSession, client_data: ClientCreate) -> Client:
         db.rollback()
     return db_client
 
+
 def delete_client(db: AsyncSession, client_id: int) -> bool:
     """
         Асинхронно удаляет клиента в базе данных.
@@ -154,6 +155,7 @@ def search_clients(db: AsyncSession, search_term: str) -> List[Client]:
     # 3. Получаем все результаты
     return result.scalars().all()
 
+
 def create_tariff(db: AsyncSession, tariff_data: TariffCreate) -> Tariff:
     """Добавляет новый тариф."""
     db_tariff = Tariff(**tariff_data.model_dump())
@@ -161,11 +163,13 @@ def create_tariff(db: AsyncSession, tariff_data: TariffCreate) -> Tariff:
     db.commit()
     return db_tariff
 
+
 def get_tariff_by_name(db: AsyncSession, name: str) -> Optional[Tariff]:
     """Находит тариф по имени."""
     stmt = select(Tariff).where(func.lower(Tariff.name) == func.lower(name))
     result = db.execute(stmt)
     return result.scalars().first()
+
 
 def get_tariffs(db: AsyncSession, skip: int = 0, limit: int = 100) -> List[Tariff]:
     """Получение списка Тарифов"""
