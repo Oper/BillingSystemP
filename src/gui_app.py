@@ -170,7 +170,7 @@ class BillingSysemApp(tkinter.Tk):
                 delete_client(db, client_id)
                 messagebox.showinfo(
                     "Успех",
-                    f"Клиент {client.full_name} (ID: {client.id}) успешно Удален!"
+                    f"Клиент {client.full_name} (ID: {client.id}) успешно удален!"
                 )
                 break
         except Exception as e:
