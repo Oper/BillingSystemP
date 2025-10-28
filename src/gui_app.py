@@ -77,9 +77,6 @@ class BillingSysemApp(tkinter.Tk):
         # Загрузка данных при старте
         self._load_clients()
 
-
-
-
     def _search_clients(self):
         """Выполняет поиск клиентов."""
         search_term = self.search_entry.get().strip()
@@ -145,7 +142,6 @@ class BillingSysemApp(tkinter.Tk):
             self.tariffs_tree.heading(col, text=col)
             self.tariffs_tree.column(col, anchor="w", width=80)
 
-
         # Загрузка данных при старте
         self._load_tariffs()
 
@@ -166,6 +162,7 @@ class BillingSysemApp(tkinter.Tk):
 
 class WindowAddClient(tkinter.Tk):
     """Класс для вызова дополнительного окна добавления клиента."""
+
     def __init__(self):
         super().__init__()
         self.title('Добавить клиента')
@@ -209,24 +206,20 @@ class WindowAddClient(tkinter.Tk):
                 tariff=self.tariff_entry.get(),
                 balance=float(self.balance_entry.get())
             )
-            new_client = None
             # 2. Вызов синхронной CRUD-функции
             for db in get_db():
                 new_client = create_client(db, data)
+                messagebox.showinfo(
+                    "Успех",
+                    f"Клиент {new_client.full_name} (ID: {new_client.id}) успешно добавлен!"
+                )
                 break
-
-            messagebox.showinfo(
-                "Успех",
-                f"Клиент {new_client.full_name} (ID: {new_client.id}) успешно добавлен!"
-            )
-
             # 3. Очистка полей и обновление списка
-            # self._clear_add_fields()
+            self._clear_add_fields()
             # self._load_clients()
 
         except Exception as e:
             messagebox.showerror("Ошибка добавления", f"Не удалось добавить клиента:\n{e}")
-
 
     def _clear_add_fields(self):
         """Очищает поля ввода после добавления."""
