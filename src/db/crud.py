@@ -1,6 +1,7 @@
 from typing import List, Optional
 
 from sqlalchemy import select, or_, func, delete
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models.tariffs import TariffCreate
@@ -23,12 +24,11 @@ def create_client(db: AsyncSession, client_data: ClientCreate) -> Client:
     # 2. Создаем экземпляр модели SQLAlchemy
     db_client = Client(**db_client_data)
     try:
-
         # 3. Добавляем объект в сессию и фиксируем изменения в базе
         db.add(db_client)
         db.commit()
         # await db.refresh(db_client) # Обновляем объект, чтобы получить ID
-    except Exception as e:
+    except SQLAlchemyError as e:
         db.rollback()
     return db_client
 
