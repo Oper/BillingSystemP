@@ -2,7 +2,8 @@ import tkinter
 from tkinter import ttk, messagebox
 from tkinter.constants import END
 
-from db.crud import get_client_by_id, delete_client
+from models.clients import ClientUpdate
+from src.db.crud import get_client_by_id, delete_client, get_client_by_pa, update_client
 from src.models.clients import ClientBase
 from src.db.crud import create_client, search_clients, get_clients, get_tariffs
 from src.db.database import get_db, init_db
@@ -55,7 +56,7 @@ class BillingSysemApp(tkinter.Tk):
         # Виджет Treeview для отображения данных
         self.client_tree = ttk.Treeview(
             frame,
-            columns=("ID", "ФИО", "Адрес", "Тариф", "Баланс", "Активен"),
+            columns=("Лицевой счет", "ФИО", "Адрес", "Тариф", "Баланс", "Активен"),
             show='headings'  # Скрываем первый столбец с индексами
         )
         self.client_tree.pack(fill="both", expand=True, padx=5, pady=5)
@@ -65,7 +66,7 @@ class BillingSysemApp(tkinter.Tk):
             self.client_tree.heading(col, text=col)
             self.client_tree.column(col, anchor="w", width=80)
 
-        self.client_tree.column("ID", width=30)
+        self.client_tree.column("Лицевой счет", width=30)
         self.client_tree.column("Баланс", width=60)
         self.client_tree.column("Активен", width=60)
 
@@ -121,7 +122,7 @@ class BillingSysemApp(tkinter.Tk):
             is_active_status = "Да" if client.is_active == 1 else "Нет"
 
             self.client_tree.insert("", "end", values=(
-                client.id,
+                client.personal_account,
                 client.full_name,
                 client.address,
                 client.tariff,
@@ -180,11 +181,32 @@ class BillingSysemApp(tkinter.Tk):
 
     def _edit_client(self):
         """Обрабатывает нажатие кнопки 'Редактировать клиента'."""
-        client_id = self.client_tree.item(self.client_tree.focus()).get('values')[0]
+        client_id = None
+        select_client = self.client_tree.item(self.client_tree.focus()).get('values')
+        if not select_client:
+            messagebox.showerror(
+                "Внимание!",
+                "Необходимо выбрать абонента!"
+            )
+        else:
+            client_id = select_client[0]
+
         try:
-            for db in get_db():
-                # client = ClientUpdate(get_client_by_id(db, client_id))
-                print(get_client_by_id(db, client_id))
+            if client_id:
+                for db in get_db():
+                    client = get_client_by_id(db, client_id)
+                    current_client = ClientBase(
+                        personal_account=int(client.personal_account),
+                        full_name=str(client.full_name),
+                        address=str(client.address),
+                        phone_number=str(client.phone_number),
+                        tariff=str(client.tariff),
+                        balance=float(client.balance),
+                    )
+                    new_window_edit_client = WindowAddClient()
+                    new_window_edit_client._set_data_client(current_client)
+
+
         except Exception as e:
             print(e)
 
@@ -202,46 +224,42 @@ class WindowAddClient(tkinter.Toplevel):
         self.geometry('400x300')
 
         # Заголовки и поля ввода
-        ttk.Label(self, text="ФИО:").grid(row=0, column=0, padx=5, pady=5, sticky="w")
+        ttk.Label(self, text="Лицевой счет:").grid(row=0, column=0, padx=5, pady=5, sticky="w")
+        self.personal_account_entry = ttk.Entry(self, width=40)
+        self.personal_account_entry.grid(row=0, column=1, padx=5, pady=5)
+
+        ttk.Label(self, text="ФИО:").grid(row=1, column=0, padx=5, pady=5, sticky="w")
         self.full_name_entry = ttk.Entry(self, width=40)
-        self.full_name_entry.grid(row=0, column=1, padx=5, pady=5)
+        self.full_name_entry.grid(row=1, column=1, padx=5, pady=5)
 
-        ttk.Label(self, text="Адрес:").grid(row=1, column=0, padx=5, pady=5, sticky="w")
+        ttk.Label(self, text="Адрес:").grid(row=2, column=0, padx=5, pady=5, sticky="w")
         self.address_entry = ttk.Entry(self, width=40)
-        self.address_entry.grid(row=1, column=1, padx=5, pady=5)
+        self.address_entry.grid(row=2, column=1, padx=5, pady=5)
 
-        ttk.Label(self, text="Телефон:").grid(row=2, column=0, padx=5, pady=5, sticky="w")
+        ttk.Label(self, text="Телефон:").grid(row=3, column=0, padx=5, pady=5, sticky="w")
         self.phone_entry = ttk.Entry(self, width=40)
-        self.phone_entry.grid(row=2, column=1, padx=5, pady=5)
+        self.phone_entry.grid(row=3, column=1, padx=5, pady=5)
 
-        ttk.Label(self, text="Тариф:").grid(row=3, column=0, padx=5, pady=5, sticky="w")
+        ttk.Label(self, text="Тариф:").grid(row=4, column=0, padx=5, pady=5, sticky="w")
         self.tariff_entry = ttk.Combobox(self, width=40)
-        self.tariff_entry.grid(row=3, column=1, padx=5, pady=5)
+        self.tariff_entry.grid(row=4, column=1, padx=5, pady=5)
 
-        ttk.Label(self, text="Баланс:").grid(row=4, column=0, padx=5, pady=5, sticky="w")
+        ttk.Label(self, text="Баланс:").grid(row=5, column=0, padx=5, pady=5, sticky="w")
         self.balance_entry = ttk.Entry(self, width=40)
-        self.balance_entry.insert(0, "0.0")  # Начальное значение
-        self.balance_entry.grid(row=4, column=1, padx=5, pady=5)
+        self.balance_entry.grid(row=5, column=1, padx=5, pady=5)
 
         # Кнопка добавления
-        ttk.Button(self, text="OK", command=self._add_client).grid(
-            row=5, column=0, columnspan=2, pady=10
-        )
-        ttk.Button(self, text="Очистить поля", command=self._clear_add_fields).grid(
+        ttk.Button(self, text="OK", command=self._send_data_client).grid(
             row=6, column=0, columnspan=2, pady=10
         )
+        ttk.Button(self, text="Очистить поля", command=self._clear_add_fields).grid(
+            row=7, column=0, columnspan=2, pady=10
+        )
 
-    def _add_client(self):
+    def _add_client(self, data):
         """Обрабатывает нажатие кнопки "Добавить Клиента"."""
         try:
-            # 1. Сбор данных
-            data = ClientCreate(
-                full_name=self.full_name_entry.get(),
-                address=self.address_entry.get(),
-                phone_number=self.phone_entry.get() or None,  # Если пусто, None
-                tariff=self.tariff_entry.get(),
-                balance=float(self.balance_entry.get())
-            )
+
             # 2. Вызов синхронной CRUD-функции
             for db in get_db():
                 new_client = create_client(db, data)
@@ -256,21 +274,84 @@ class WindowAddClient(tkinter.Toplevel):
         except Exception as e:
             messagebox.showerror("Ошибка добавления", f"Не удалось добавить клиента:\n{e}")
 
-    def _update_client(self, client: ClientBase):
+    def _update_client(self, client_id: int, client: ClientUpdate):
         """Редактирование Клиента в дополнительном окне.
 
+        :param client_id: ID клиента в базе данных.
         :param client: Данные выбранного Клиента в главном окне.
         """
-        pass
+        try:
+
+            # 2. Вызов синхронной CRUD-функции
+            for db in get_db():
+                current_client = update_client(db, client_id, client)
+                messagebox.showinfo(
+                    "Успех",
+                    f"Клиент {current_client.full_name} (ID: {current_client.id}) успешно изменен!"
+                )
+                break
+
+            self.destroy()
+
+        except Exception as e:
+            messagebox.showerror("Ошибка изменения", f"Не удалось изменить клиента:\n{e}")
 
     def _clear_add_fields(self):
         """Очищает поля ввода после добавления."""
+
+        self.personal_account_entry.delete(0, END)
         self.full_name_entry.delete(0, END)
         self.address_entry.delete(0, END)
         self.phone_entry.delete(0, END)
         self.tariff_entry.delete(0, END)
         self.balance_entry.delete(0, END)
-        self.balance_entry.insert(0, "0.0")
+        self.balance_entry.delete(0, END)
+
+    def _set_data_client(self, client: ClientBase):
+        """Заполняем данные клиента с базы для редактирования"""
+        self.personal_account_entry.insert(0, client.personal_account)
+        self.full_name_entry.insert(0, client.full_name)
+        self.address_entry.insert(0, client.address)
+        self.phone_entry.insert(0, client.phone_number)
+        self.tariff_entry.insert(0, client.tariff)
+        self.balance_entry.insert(0, float(client.balance))
+
+    def _send_data_client(self):
+        # 1. Сбор данных
+        data = ClientCreate(
+            personal_account=int(self.personal_account_entry.get()),
+            full_name=self.full_name_entry.get(),
+            address=self.address_entry.get(),
+            phone_number=self.phone_entry.get(),
+            tariff=self.tariff_entry.get(),
+            balance=float(self.balance_entry.get()),
+        )
+        if not data:
+            messagebox.showerror(
+                "Ошибка!",
+                "Заполните все поля!"
+            )
+        else:
+
+            try:
+                for db in get_db():
+                    # Проверка клиента в базе
+                    client = get_client_by_pa(db, int(data.personal_account))
+                    if not client:
+                        self._add_client(data)
+                    else:
+                        current_client = ClientUpdate(
+                            full_name=self.full_name_entry.get(),
+                            address=self.address_entry.get(),
+                            phone_number=self.phone_entry.get(),
+                            tariff=self.tariff_entry.get(),
+                        )
+                        self._update_client(int(client.id), current_client)
+            except Exception as e:
+                messagebox.showerror(
+                    "Ошибка",
+                    f"Возникла ошибка!\nПодробности: {e}"
+                )
 
 
 # --- Запуск приложения ---
