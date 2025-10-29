@@ -1,9 +1,22 @@
+import enum
 from datetime import datetime
+from typing import List
 
-from sqlalchemy import func
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import func, ForeignKey
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.db.database import BaseModel
+
+
+class StatusEnum(str, enum.Enum):
+    PENDING = "Ожидает"
+    PAID = "Оплачен"
+    FAILED = "Неудачный"
+    REFUNDED = "Возвращен"
+
+class CurrencyEnum(str, enum.Enum):
+    RUB = "Рубль"
+    USD = "Доллар"
 
 
 class Client(BaseModel):
@@ -18,6 +31,7 @@ class Client(BaseModel):
     connection_date: Mapped[datetime] = mapped_column(server_default=func.now())
     balance: Mapped[float] = mapped_column(default=0.0)
     is_active: Mapped[bool] = mapped_column(default=True)
+    payments: Mapped[List["Payment"]] = relationship("Payment", back_populates="client", cascade="all, delete-orphan")
 
     def __repr__(self):
         return f'Client (id={self.id}, name={self.full_name}, balance={self.balance}, is_active={self.is_active})'
@@ -42,3 +56,13 @@ class Tariff(BaseModel):
 
     def __repr__(self):
         return f"Tariff(id={self.id}, name='{self.name}', price={self.monthly_price})"
+
+class Payment(BaseModel):
+    """Модель платежей"""
+    __tablename__ = 'payments'
+    amount: Mapped[float] = mapped_column(default=0.0)
+    currency: Mapped[CurrencyEnum] = mapped_column(default=CurrencyEnum.RUB)
+    status: Mapped[StatusEnum] = mapped_column(nullable=False)
+    external_id: Mapped[str | None] = mapped_column(unique=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id"))
+    client: Mapped["Client"] = relationship("Client", back_populates="payments")
