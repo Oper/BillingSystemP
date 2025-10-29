@@ -2,11 +2,11 @@ import tkinter
 from tkinter import ttk, messagebox
 from tkinter.constants import END
 
-from models.clients import ClientUpdate
-from src.db.crud import get_client_by_id, delete_client, get_client_by_pa, update_client
-from src.models.clients import ClientBase
+from src.models.clients import ClientUpdate
 from src.db.crud import create_client, search_clients, get_clients, get_tariffs
+from src.db.crud import get_client_by_id, delete_client, get_client_by_pa, update_client
 from src.db.database import get_db, init_db
+from src.models.clients import ClientBase
 from src.models.clients import ClientCreate
 
 
