@@ -64,7 +64,7 @@ class BillingSysemApp(tkinter.Tk):
         self.client_tree.column("Баланс", width=60)
         self.client_tree.column("Активен", width=60)
 
-        ttk.Button(frame, text="Внести оплату").pack(side="left", padx=5)
+        ttk.Button(frame, text="Внести оплату", command=self._add_payment).pack(side="left", padx=5)
         ttk.Button(frame, text="Приостановить").pack(side="left", padx=5)
         ttk.Button(frame, text="Возобновить").pack(side="left", padx=5)
         ttk.Separator(frame, orient="vertical", style="black.TSeparator").pack(side="left", padx=5, pady=5)
@@ -215,18 +215,24 @@ class BillingSysemApp(tkinter.Tk):
         pass
 
     def _add_client(self):
-        """Создание нового окна для добавления клиента"""
+        """Создание нового окна для добавления клиента."""
 
         add_window = WindowAddClient()
 
+    def _add_payment(self):
+        """Создание окна для внесения оплаты."""
+        window_add_payment = WindowAddPayment()
+
 
 class WindowAddClient(tkinter.Toplevel):
-    """Класс для вызова дополнительного окна добавления клиента."""
+    """Класс для вызова окна добавления клиента."""
 
     def __init__(self):
         super().__init__()
         self.title('Добавить клиента')
         self.geometry('400x300')
+        self.resizable(False, False)
+        self.grab_set()
 
         # Заголовки и поля ввода
         ttk.Label(self, text="Лицевой счет:").grid(row=0, column=0, padx=5, pady=5, sticky="w")
@@ -322,7 +328,11 @@ class WindowAddClient(tkinter.Toplevel):
         self.balance_entry.insert(0, float(client.balance))
 
     def _send_data_client(self):
+        """Общий метод для реализации добавления клиента в базу
+         или обновления клиента в базе
+         TODO Работает криво, надо доделать"""
         # 1. Сбор данных
+
         data = ClientCreate(
             personal_account=int(self.personal_account_entry.get()),
             full_name=self.full_name_entry.get(),
@@ -331,6 +341,7 @@ class WindowAddClient(tkinter.Toplevel):
             tariff=self.tariff_entry.get(),
             balance=float(self.balance_entry.get()),
         )
+
         if not data:
             messagebox.showerror(
                 "Ошибка!",
@@ -358,6 +369,42 @@ class WindowAddClient(tkinter.Toplevel):
                     f"Возникла ошибка!\nПодробности: {e}"
                 )
 
+
+class WindowAddPayment(tkinter.Toplevel):
+    """Класс для вызова окна внесения оплаты."""
+
+    def __init__(self):
+        super().__init__()
+        self.title("Внести оплату")
+        self.geometry("400x200")
+        self.resizable(False, False)
+        self.grab_set()
+
+        # Создаем фрейм (рамку) для лучшего размещения элементов (Padding)
+        main_frame = ttk.Frame(self, padding="20 20 20 20")
+        main_frame.pack(fill='both', expand=True)
+
+        # Использование сетки (Grid) для расположения элементов
+
+        # --- 1. Сумма платежа ---
+        ttk.Label(main_frame, text="Сумма (RUB):").grid(column=0, row=0, sticky=tkinter.W, pady=5)
+        amount_entry = ttk.Entry(main_frame, width=30)
+        # 'W' (west) означает выравнивание по левому краю
+        amount_entry.grid(column=1, row=0, padx=10, pady=5, sticky=tkinter.E)
+        amount_entry.insert(0, "100.00")  # Значение по умолчанию
+
+        # --- 2. Номер карты ---
+        ttk.Label(main_frame, text="Номер карты:").grid(column=0, row=1, sticky=tkinter.W, pady=5)
+        card_entry = ttk.Entry(main_frame, width=30)
+        card_entry.grid(column=1, row=1, padx=10, pady=5, sticky=tkinter.E)
+
+        # --- 4. Кнопка "Оплатить" ---
+        payment_button = ttk.Button(main_frame, text="Оплатить", command=self._process_payment)
+        # Размещаем кнопку на всю ширину под полями
+        payment_button.grid(column=0, row=3, columnspan=2, pady=20, sticky=tkinter.W + tkinter.E)
+
+    def _process_payment(self):
+        pass
 
 # --- Запуск приложения ---
 if __name__ == "__main__":
