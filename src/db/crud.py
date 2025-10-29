@@ -2,14 +2,14 @@ from typing import List, Optional
 
 from sqlalchemy import select, or_, func, delete
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
-from models.tariffs import TariffCreate
+from src.models.tariffs import TariffCreate
 from src.db.models import Client, Tariff
 from src.models.clients import ClientCreate, ClientUpdate
 
 
-def create_client(db: AsyncSession, client_data: ClientCreate) -> Client:
+def create_client(db: Session, client_data: ClientCreate) -> Client:
     """
     Асинхронно добавляет нового клиента в базу данных.
 
@@ -33,7 +33,7 @@ def create_client(db: AsyncSession, client_data: ClientCreate) -> Client:
     return db_client
 
 
-def delete_client(db: AsyncSession, client_id: int) -> bool:
+def delete_client(db: Session, client_id: int) -> bool:
     """
         Синхронно удаляет клиента в базе данных.
 
@@ -60,7 +60,7 @@ def delete_client(db: AsyncSession, client_id: int) -> bool:
         return False
 
 
-def get_client_by_id(db: AsyncSession, client_id: int) -> Optional[Client]:
+def get_client_by_id(db: Session, client_id: int) -> Optional[Client]:
     """
     Синхронно получает одного клиента по его уникальному ID.
 
@@ -75,8 +75,23 @@ def get_client_by_id(db: AsyncSession, client_id: int) -> Optional[Client]:
     result = db.execute(stmt)
     return result.scalars().first()
 
+def get_client_by_pa(db: Session, client_pa: int) -> Optional[Client]:
+    """
+    Синхронно получает одного клиента по его уникальному Лицевому счету.
 
-def update_client(db: AsyncSession, client_id: int, client_data: ClientUpdate) -> Optional[Client]:
+    :param db: Активная синхронная сессия базы данных.
+    :param client_pa: Уникальный PA (personal account) клиента.
+    :return: Объект клиента или None, если клиент не найден.
+    """
+    # Формируем запрос: SELECT * FROM clients WHERE personal_account = :client_pa
+    stmt = select(Client).where(Client.personal_account == client_pa)
+
+    # Выполняем запрос и возвращаем первый найденный объект (или None)
+    result = db.execute(stmt)
+    return result.scalars().first()
+
+
+def update_client(db: Session, client_id: int, client_data: ClientUpdate) -> Optional[Client]:
     """
     Синхронно обновляет данные существующего клиента.
 
@@ -106,7 +121,7 @@ def update_client(db: AsyncSession, client_id: int, client_data: ClientUpdate) -
     return db_client
 
 
-def get_clients(db: AsyncSession, skip: int = 0, limit: int = 100) -> List[Client]:
+def get_clients(db: Session, skip: int = 0, limit: int = 100) -> List[Client]:
     """
     Синхронно получает список клиентов с возможностью пагинации.
 
@@ -126,7 +141,7 @@ def get_clients(db: AsyncSession, skip: int = 0, limit: int = 100) -> List[Clien
     return result.scalars().all()
 
 
-def search_clients(db: AsyncSession, search_term: str) -> List[Client]:
+def search_clients(db: Session, search_term: str) -> List[Client]:
     """
     Асинхронно ищет клиентов по частичному совпадению ФИО или Адреса (без учета регистра).
 
@@ -156,7 +171,7 @@ def search_clients(db: AsyncSession, search_term: str) -> List[Client]:
     return result.scalars().all()
 
 
-def create_tariff(db: AsyncSession, tariff_data: TariffCreate) -> Tariff:
+def create_tariff(db: Session, tariff_data: TariffCreate) -> Tariff:
     """Добавляет новый тариф."""
     db_tariff = Tariff(**tariff_data.model_dump())
     db.add(db_tariff)
@@ -164,21 +179,21 @@ def create_tariff(db: AsyncSession, tariff_data: TariffCreate) -> Tariff:
     return db_tariff
 
 
-def get_tariff_by_name(db: AsyncSession, name: str) -> Optional[Tariff]:
+def get_tariff_by_name(db: Session, name: str) -> Optional[Tariff]:
     """Находит тариф по имени."""
     stmt = select(Tariff).where(func.lower(Tariff.name) == func.lower(name))
     result = db.execute(stmt)
     return result.scalars().first()
 
 
-def get_tariffs(db: AsyncSession, skip: int = 0, limit: int = 100) -> List[Tariff]:
+def get_tariffs(db: Session, skip: int = 0, limit: int = 100) -> List[Tariff]:
     """Получение списка Тарифов"""
     stmt = select(Tariff).offset(skip).limit(limit)
     result = db.execute(stmt)
     return result.scalars().all()
 
 
-def apply_monthly_charge(db: AsyncSession, client_id: int) -> Optional[Client]:
+def apply_monthly_charge(db: Session, client_id: int) -> Optional[Client]:
     """
     Рассчитывает ежемесячную плату для клиента и вычитает ее из баланса.
 
@@ -207,7 +222,7 @@ def apply_monthly_charge(db: AsyncSession, client_id: int) -> Optional[Client]:
     return client
 
 
-def set_client_activity(db: AsyncSession, client_id: int, is_active: bool) -> Optional[Client]:
+def set_client_activity(db: Session, client_id: int, is_active: bool) -> Optional[Client]:
     """
     Приостанавливает (is_active=False) или возобновляет (is_active=True) обслуживание клиента.
 
