@@ -10,12 +10,6 @@ from src.db.database import get_db, init_db
 from src.models.clients import ClientCreate
 
 
-def snow_window_abonent_add():
-    """Создание окна для добавления абонента"""
-
-    new_window = WindowAddClient()
-
-
 class BillingSysemApp(tkinter.Tk):
     """Основной класс приложения с графическим интерфейсом."""
 
@@ -74,7 +68,7 @@ class BillingSysemApp(tkinter.Tk):
         ttk.Button(frame, text="Приостановить").pack(side="left", padx=5)
         ttk.Button(frame, text="Возобновить").pack(side="left", padx=5)
         ttk.Separator(frame, orient="vertical", style="black.TSeparator").pack(side="left", padx=5, pady=5)
-        ttk.Button(frame, text="Добавить клиента", command=snow_window_abonent_add).pack(side="left", padx=5)
+        ttk.Button(frame, text="Добавить клиента", command=self._add_client).pack(side="left", padx=5)
         ttk.Button(frame, text="Редактировать клиента", command=self._edit_client).pack(side="left", padx=5)
         ttk.Button(frame, text="Удалить клиента", command=self._delete_client).pack(side="left", padx=5)
         # Загрузка данных при старте
@@ -164,20 +158,26 @@ class BillingSysemApp(tkinter.Tk):
 
     def _delete_client(self):
         """Обрабатывает нажатие кнопки 'Удалить клиента'."""
-        client_id = self.client_tree.item(self.client_tree.focus()).get('values')[0]
-        try:
-            for db in get_db():
-                client = get_client_by_id(db, client_id)
-                delete_client(db, client_id)
-                messagebox.showinfo(
-                    "Успех",
-                    f"Клиент {client.full_name} (ID: {client.id}) успешно удален!"
-                )
-                break
-        except Exception as e:
-            messagebox.showerror("Ошибка удаления", f"Не удалось удалить клиента:\n{e}")
+        select_client = self.client_tree.item(self.client_tree.focus()).get('values')
+        if not select_client:
+            messagebox.showerror(
+                "Внимание!",
+                "Необходимо выбрать абонента!"
+            )
+        else:
+            try:
+                for db in get_db():
+                    client = get_client_by_id(db, select_client[0])
+                    delete_client(db, select_client[0])
+                    messagebox.showinfo(
+                        "Успех",
+                        f"Клиент {client.full_name} (ID: {client.id}) успешно удален!"
+                    )
+                    break
+            except Exception as e:
+                messagebox.showerror("Ошибка удаления", f"Не удалось удалить клиента:\n{e}")
 
-        self._search_clients()
+            self._search_clients()
 
     def _edit_client(self):
         """Обрабатывает нажатие кнопки 'Редактировать клиента'."""
@@ -213,6 +213,11 @@ class BillingSysemApp(tkinter.Tk):
     def _delete_tariff(self):
         """Обрабатывает нажатие кнопки 'Удалить тариф'."""
         pass
+
+    def _add_client(self):
+        """Создание нового окна для добавления клиента"""
+
+        add_window = WindowAddClient()
 
 
 class WindowAddClient(tkinter.Toplevel):
