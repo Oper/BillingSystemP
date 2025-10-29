@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field
 
 class ClientBase(BaseModel):
     """Базовая модель для данных клиента."""
+    personal_account: int = Field(..., description="Лицевой счет абонента.")
     full_name: str = Field(..., description='Полное ФИО клиента.')
     address: str = Field(..., description='Адрес подключения.')
     phone_number: Optional[str] = Field(..., description='Номер телефона.')
@@ -18,6 +19,7 @@ class ClientCreate(ClientBase):
 
 class ClientUpdate(ClientBase):
     """Модель для обновления клиента (все поля необязательны для обновления)."""
+    personal_account: Optional[int] = None
     full_name: Optional[str] = None
     address: Optional[str] = None
     phone_number: Optional[str] = None
