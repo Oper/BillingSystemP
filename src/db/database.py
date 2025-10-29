@@ -2,9 +2,7 @@ from datetime import datetime
 
 from sqlalchemy import func, create_engine
 from sqlalchemy.orm import Mapped, mapped_column, declared_attr, DeclarativeBase, sessionmaker
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 
-#Base = declarative_base()
 DATABASE_URL = 'sqlite:///data/dbase.db'
 engine = create_engine(DATABASE_URL, echo=False)
 SessionLocal = sessionmaker(
@@ -27,7 +25,7 @@ class BaseModel(DeclarativeBase):
 
 
 def get_db():
-    """Предоставляет асинхронную сессию для работы с базой данных."""
+    """Предоставляет синхронную сессию для работы с базой данных."""
     with SessionLocal() as session:
         try:
             yield session
