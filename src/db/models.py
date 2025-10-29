@@ -10,7 +10,8 @@ class Client(BaseModel):
     """Модель клиента.
     """
     __tablename__ = 'clients'
-    full_name: Mapped[str] = mapped_column(unique=True)
+    personal_account: Mapped[int] = mapped_column(unique=True)
+    full_name: Mapped[str] = mapped_column()
     address: Mapped[str] = mapped_column(unique=True)
     phone_number: Mapped[str] = mapped_column(unique=True)
     tariff: Mapped[str] = mapped_column(nullable=False)
