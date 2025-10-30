@@ -2,6 +2,8 @@ import tkinter
 from tkinter import ttk, messagebox
 from tkinter.constants import END
 
+from pydantic import ValidationError
+
 from src.models.clients import ClientUpdate
 from src.db.crud import create_client, search_clients, get_clients, get_tariffs
 from src.db.crud import get_client_by_id, delete_client, get_client_by_pa, update_client
@@ -203,8 +205,9 @@ class BillingSysemApp(tkinter.Tk):
                         tariff=str(client.tariff),
                         balance=float(client.balance),
                     )
-                    new_window_edit_client = WindowAddClient()
-                    new_window_edit_client._set_data_client(current_client)
+                    new_window_edit_client = WindowAddClient(self)
+                    new_window_edit_client.set_data_client(current_client)
+                    break
 
 
         except Exception as e:
@@ -217,22 +220,22 @@ class BillingSysemApp(tkinter.Tk):
     def _add_client(self):
         """Создание нового окна для добавления клиента."""
 
-        add_window = WindowAddClient()
+        add_window = WindowAddClient(self)
 
     def _add_payment(self):
         """Создание окна для внесения оплаты."""
-        window_add_payment = WindowAddPayment()
+
+        window_add_payment = WindowAddPayment(self)
 
 
 class WindowAddClient(tkinter.Toplevel):
     """Класс для вызова окна добавления клиента."""
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, parent):
+        super().__init__(parent)
         self.title('Добавить клиента')
         self.geometry('400x300')
         self.resizable(False, False)
-        self.grab_set()
 
         # Заголовки и поля ввода
         ttk.Label(self, text="Лицевой счет:").grid(row=0, column=0, padx=5, pady=5, sticky="w")
@@ -260,12 +263,15 @@ class WindowAddClient(tkinter.Toplevel):
         self.balance_entry.grid(row=5, column=1, padx=5, pady=5)
 
         # Кнопка добавления
-        ttk.Button(self, text="OK", command=self._send_data_client).grid(
+        ttk.Button(self, text="Отправить", command=self._send_data_client).grid(
             row=6, column=0, columnspan=2, pady=10
         )
         ttk.Button(self, text="Очистить поля", command=self._clear_add_fields).grid(
             row=7, column=0, columnspan=2, pady=10
         )
+
+        self.transient(parent)
+        self.grab_set()
 
     def _add_client(self, data):
         """Обрабатывает нажатие кнопки "Добавить Клиента"."""
@@ -318,38 +324,32 @@ class WindowAddClient(tkinter.Toplevel):
         self.balance_entry.delete(0, END)
         self.balance_entry.delete(0, END)
 
-    def _set_data_client(self, client: ClientBase):
+    def set_data_client(self, client: ClientBase):
         """Заполняем данные клиента с базы для редактирования"""
         self.personal_account_entry.insert(0, client.personal_account)
         self.full_name_entry.insert(0, client.full_name)
         self.address_entry.insert(0, client.address)
         self.phone_entry.insert(0, client.phone_number)
         self.tariff_entry.insert(0, client.tariff)
-        self.balance_entry.insert(0, float(client.balance))
+        self.balance_entry.insert(0, client.balance)
 
     def _send_data_client(self):
         """Общий метод для реализации добавления клиента в базу
-         или обновления клиента в базе
-         TODO Работает криво, надо доделать"""
+         или обновления клиента в базе."""
         # 1. Сбор данных
+        window_data = {
+            "personal_account": self.personal_account_entry.get(),
+            "full_name": self.full_name_entry.get(),
+            "address": self.address_entry.get(),
+            "phone_number": self.phone_entry.get(),
+            "tariff": self.tariff_entry.get(),
+            "balance": self.balance_entry.get(),
+        }
 
-        data = ClientCreate(
-            personal_account=int(self.personal_account_entry.get()),
-            full_name=self.full_name_entry.get(),
-            address=self.address_entry.get(),
-            phone_number=self.phone_entry.get(),
-            tariff=self.tariff_entry.get(),
-            balance=float(self.balance_entry.get()),
-        )
-
-        if not data:
-            messagebox.showerror(
-                "Ошибка!",
-                "Заполните все поля!"
-            )
-        else:
-
+        if window_data.values():
             try:
+                data = ClientCreate(**window_data)
+
                 for db in get_db():
                     # Проверка клиента в базе
                     client = get_client_by_pa(db, int(data.personal_account))
@@ -363,22 +363,27 @@ class WindowAddClient(tkinter.Toplevel):
                             tariff=self.tariff_entry.get(),
                         )
                         self._update_client(int(client.id), current_client)
-            except Exception as e:
+
+            except (Exception, ValidationError) as e:
                 messagebox.showerror(
                     "Ошибка",
                     f"Возникла ошибка!\nПодробности: {e}"
                 )
+        else:
+            messagebox.showerror(
+                "Ошибка!",
+                "Заполните все поля!"
+            )
 
 
 class WindowAddPayment(tkinter.Toplevel):
     """Класс для вызова окна внесения оплаты."""
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, parent):
+        super().__init__(parent)
         self.title("Внести оплату")
         self.geometry("400x200")
         self.resizable(False, False)
-        self.grab_set()
 
         # Создаем фрейм (рамку) для лучшего размещения элементов (Padding)
         main_frame = ttk.Frame(self, padding="20 20 20 20")
@@ -403,8 +408,12 @@ class WindowAddPayment(tkinter.Toplevel):
         # Размещаем кнопку на всю ширину под полями
         payment_button.grid(column=0, row=3, columnspan=2, pady=20, sticky=tkinter.W + tkinter.E)
 
+        self.transient(parent)
+        self.grab_set()
+
     def _process_payment(self):
         pass
+
 
 # --- Запуск приложения ---
 if __name__ == "__main__":

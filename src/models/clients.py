@@ -3,14 +3,16 @@ from typing import Optional
 
 from pydantic import BaseModel, Field
 
+
 class ClientBase(BaseModel):
     """Базовая модель для данных клиента."""
     personal_account: int = Field(..., description="Лицевой счет абонента.")
-    full_name: str = Field(..., description='Полное ФИО клиента.')
-    address: str = Field(..., description='Адрес подключения.')
-    phone_number: Optional[str] = Field(..., description='Номер телефона.')
+    full_name: str = Field(..., description='Полное ФИО клиента.', min_length=3)
+    address: str = Field(..., description='Адрес подключения.', min_length=3)
+    phone_number: str = Field(..., description='Номер телефона.', min_length=5)
     tariff: str = Field(..., description='Название выбранного тарифа.')
     balance: float = Field(0.0, description='Начальный баланс.')
+
 
 class ClientCreate(ClientBase):
     """Модель для создания клиента (наследует ClientBase)."""
