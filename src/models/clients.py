@@ -18,6 +18,8 @@ class ClientCreate(ClientBase):
     """Модель для создания клиента (наследует ClientBase)."""
     pass
 
+class ClientForPayments(ClientBase):
+    is_active: int
 
 class ClientUpdate(ClientBase):
     """Модель для обновления клиента (все поля необязательны для обновления)."""

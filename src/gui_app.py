@@ -4,7 +4,7 @@ from tkinter.constants import END
 
 from pydantic import ValidationError
 
-from src.models.clients import ClientUpdate
+from src.models.clients import ClientUpdate, ClientForPayments
 from src.db.crud import create_client, search_clients, get_clients, get_tariffs
 from src.db.crud import get_client_by_id, delete_client, get_client_by_pa, update_client
 from src.db.database import get_db, init_db
@@ -238,13 +238,14 @@ class BillingSysemApp(tkinter.Tk):
                 if client_id:
                     for db in get_db():
                         client = get_client_by_id(db, client_id)
-                        current_client = ClientBase(
+                        current_client = ClientForPayments(
                             personal_account=int(client.personal_account),
                             full_name=str(client.full_name),
                             address=str(client.address),
                             phone_number=str(client.phone_number),
                             tariff=str(client.tariff),
                             balance=float(client.balance),
+                            is_active=bool(client.is_active),
                         )
                         new_window_edit_client = WindowAddPayment(self)
                         new_window_edit_client.set_data_client(current_client)
@@ -253,7 +254,6 @@ class BillingSysemApp(tkinter.Tk):
 
             except Exception as e:
                 print(e)
-        window_add_payment = WindowAddPayment(self)
 
 
 class WindowAddClient(tkinter.Toplevel):
@@ -410,7 +410,7 @@ class WindowAddPayment(tkinter.Toplevel):
     def __init__(self, parent):
         super().__init__(parent)
         self.title("Внести оплату")
-        self.geometry("330x250")
+        self.geometry("330x220")
         self.resizable(False, False)
 
         # Создаем фрейм (рамку) для лучшего размещения элементов (Padding)
@@ -419,32 +419,73 @@ class WindowAddPayment(tkinter.Toplevel):
 
         # Использование сетки (Grid) для расположения элементов
 
-        # --- 1. Сумма платежа ---
-        ttk.Label(main_frame, text="Сумма (RUB):").grid(column=0, row=0, sticky=tkinter.W, pady=5)
-        amount_entry = ttk.Entry(main_frame, width=30)
+        ttk.Label(main_frame, text="ЛC Клиента:").grid(column=0, row=0, sticky=tkinter.W, pady=5)
+        self.personal_account = tkinter.StringVar()
+        personal_account_label = ttk.Label(main_frame, textvariable=self.personal_account, width=30)
+        personal_account_label.grid(column=1, row=0, padx=10, pady=5, sticky=tkinter.E)
+
+        ttk.Label(main_frame, text="ФИО Клиента:").grid(column=0, row=1, sticky=tkinter.W, pady=5)
+        self.full_name_text = tkinter.StringVar()
+        full_name_label = ttk.Label(main_frame, textvariable=self.full_name_text, width=30)
+        full_name_label.grid(column=1, row=1, padx=10, pady=5, sticky=tkinter.E)
+
+        ttk.Label(main_frame, text="Баланс клиента:").grid(column=0, row=2, sticky=tkinter.W, pady=5)
+        self.balance_text = tkinter.StringVar()
+        balance_label = ttk.Label(main_frame, textvariable=self.balance_text, width=30)
+        balance_label.grid(column=1, row=2, padx=10, pady=5, sticky=tkinter.E)
+
+        ttk.Label(main_frame, text="Статус клиента:").grid(column=0, row=3, sticky=tkinter.W, pady=5)
+        self.status_text = tkinter.StringVar()
+        status_label = ttk.Label(main_frame, textvariable=self.status_text, width=30)
+        status_label.grid(column=1, row=3, padx=10, pady=5, sticky=tkinter.E)
+
+        ttk.Label(main_frame, text="Сумма (RUB):").grid(column=0, row=4, sticky=tkinter.W, pady=5)
+        self.amount_entry = ttk.Entry(main_frame, width=30)
         # 'W' (west) означает выравнивание по левому краю
-        amount_entry.grid(column=1, row=0, padx=10, pady=5, sticky=tkinter.E)
-        amount_entry.insert(0, "600.00")  # Значение по умолчанию
-
-
-        ttk.Label(main_frame, text="Номер карты:").grid(column=0, row=1, sticky=tkinter.W, pady=5)
-        card_entry = ttk.Entry(main_frame, width=30)
-        card_entry.grid(column=1, row=1, padx=10, pady=5, sticky=tkinter.E)
+        self.amount_entry.grid(column=1, row=4, padx=10, pady=5, sticky=tkinter.E)
+        self.amount_entry.insert(0, "600.00")  # Значение по умолчанию
 
         # --- 4. Кнопка "Оплатить" ---
         payment_button = ttk.Button(main_frame, text="Оплатить", command=self._process_payment)
         # Размещаем кнопку на всю ширину под полями
-        payment_button.grid(column=0, row=3, columnspan=2, pady=20, sticky=tkinter.W + tkinter.E)
+        payment_button.grid(column=0, row=5, columnspan=2, pady=20, sticky=tkinter.W + tkinter.E)
 
         self.transient(parent)
         self.grab_set()
 
     def _process_payment(self):
         """Обработка нажатия кнопки добавления платежа."""
-        pass
+        try:
 
-    def set_data_client(self, current_client):
-        pass
+            personal_account = int(self.personal_account.get())
+            amount = float(self.amount_entry.get())
+            if personal_account and amount > 0.0:
+                for db in get_db():
+                    current_client = get_client_by_pa(db, personal_account)
+                    new_balance = amount + current_client.balance
+                    client_for_update = ClientUpdate(
+                        balance=new_balance,
+                    )
+                    current_client.balance += amount
+                    update_client(db, int(current_client.id), client_for_update)
+                    messagebox.showinfo(
+                        "Успех!",
+                        f"Внесена сумма: {amount} руб. \nдля Клиента: {current_client.full_name} \nЛицевой счёт: {current_client.personal_account}"
+                    )
+                    break
+            self.destroy()
+        except (Exception, ValidationError) as e:
+            messagebox.showerror(
+                "Ошибка!",
+                f"Произошла ошибка, подробнее: \n{e}"
+            )
+
+    def set_data_client(self, current_client: ClientForPayments):
+        """Заполняем данные клиента с базы"""
+        self.personal_account.set(str(current_client.personal_account))
+        self.full_name_text.set(current_client.full_name)
+        self.balance_text.set(str(current_client.balance))
+        self.status_text.set("Активный" if current_client.is_active else "Приостановлен")
 
 
 # --- Запуск приложения ---
