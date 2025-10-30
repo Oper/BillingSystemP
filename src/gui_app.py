@@ -224,7 +224,35 @@ class BillingSysemApp(tkinter.Tk):
 
     def _add_payment(self):
         """Создание окна для внесения оплаты."""
+        # TODO
+        client_id = None
+        select_client = self.client_tree.item(self.client_tree.focus()).get('values')
+        if not select_client:
+            messagebox.showerror(
+                "Внимание!",
+                "Необходимо выбрать абонента!"
+            )
+        else:
+            client_id = select_client[0]
+            try:
+                if client_id:
+                    for db in get_db():
+                        client = get_client_by_id(db, client_id)
+                        current_client = ClientBase(
+                            personal_account=int(client.personal_account),
+                            full_name=str(client.full_name),
+                            address=str(client.address),
+                            phone_number=str(client.phone_number),
+                            tariff=str(client.tariff),
+                            balance=float(client.balance),
+                        )
+                        new_window_edit_client = WindowAddPayment(self)
+                        new_window_edit_client.set_data_client(current_client)
+                        break
 
+
+            except Exception as e:
+                print(e)
         window_add_payment = WindowAddPayment(self)
 
 
@@ -382,7 +410,7 @@ class WindowAddPayment(tkinter.Toplevel):
     def __init__(self, parent):
         super().__init__(parent)
         self.title("Внести оплату")
-        self.geometry("400x200")
+        self.geometry("330x250")
         self.resizable(False, False)
 
         # Создаем фрейм (рамку) для лучшего размещения элементов (Padding)
@@ -396,9 +424,9 @@ class WindowAddPayment(tkinter.Toplevel):
         amount_entry = ttk.Entry(main_frame, width=30)
         # 'W' (west) означает выравнивание по левому краю
         amount_entry.grid(column=1, row=0, padx=10, pady=5, sticky=tkinter.E)
-        amount_entry.insert(0, "100.00")  # Значение по умолчанию
+        amount_entry.insert(0, "600.00")  # Значение по умолчанию
 
-        # --- 2. Номер карты ---
+
         ttk.Label(main_frame, text="Номер карты:").grid(column=0, row=1, sticky=tkinter.W, pady=5)
         card_entry = ttk.Entry(main_frame, width=30)
         card_entry.grid(column=1, row=1, padx=10, pady=5, sticky=tkinter.E)
@@ -412,6 +440,10 @@ class WindowAddPayment(tkinter.Toplevel):
         self.grab_set()
 
     def _process_payment(self):
+        """Обработка нажатия кнопки добавления платежа."""
+        pass
+
+    def set_data_client(self, current_client):
         pass
 
 
