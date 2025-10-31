@@ -61,8 +61,11 @@ class Payment(BaseModel):
     """Модель платежей"""
     __tablename__ = 'payments'
     amount: Mapped[float] = mapped_column(default=0.0)
-    currency: Mapped[CurrencyEnum] = mapped_column(default=CurrencyEnum.RUB)
-    status: Mapped[StatusEnum] = mapped_column(nullable=False)
-    external_id: Mapped[str | None] = mapped_column(unique=True)
+    currency: Mapped[CurrencyEnum] = mapped_column(nullable=True, default=CurrencyEnum.RUB)
+    status: Mapped[StatusEnum] = mapped_column(nullable=True, default=StatusEnum.PAID)
+    external_id: Mapped[str | None] = mapped_column(nullable=True)
     client_id: Mapped[int] = mapped_column(ForeignKey("clients.id"))
     client: Mapped["Client"] = relationship("Client", back_populates="payments")
+
+    def __repr__(self):
+        return f'Payment (amount={self.amount}, ЛС Клиента={self.client.personal_account})'

@@ -4,16 +4,18 @@ from sqlalchemy import select, or_, func, delete
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
-from src.models.tariffs import TariffCreate
-from src.db.models import Client, Tariff
+from db.models import Client, Payment
+from src.db.models import Client, Tariff, Payment
 from src.models.clients import ClientCreate, ClientUpdate
+from src.models.payments import PaymentCreate
+from src.models.tariffs import TariffCreate
 
 
-def create_client(db: Session, client_data: ClientCreate) -> Client:
+def create_client(db: Session, client_data: ClientCreate) -> Client | None:
     """
-    Асинхронно добавляет нового клиента в базу данных.
+    Синхронно добавляет нового клиента в базу данных.
 
-    :param db: Активная асинхронная сессия базы данных.
+    :param db: Активная синхронная сессия базы данных.
     :param client_data: Объект Pydantic с данными нового клиента.
     :return: Созданный объект клиента (модель SQLAlchemy).
     """
@@ -27,10 +29,10 @@ def create_client(db: Session, client_data: ClientCreate) -> Client:
         # 3. Добавляем объект в сессию и фиксируем изменения в базе
         db.add(db_client)
         db.commit()
+        return db_client
         # await db.refresh(db_client) # Обновляем объект, чтобы получить ID
     except SQLAlchemyError as e:
         db.rollback()
-    return db_client
 
 
 def delete_client(db: Session, client_id: int) -> bool:
@@ -74,6 +76,7 @@ def get_client_by_id(db: Session, client_id: int) -> Optional[Client]:
     # Выполняем запрос и возвращаем первый найденный объект (или None)
     result = db.execute(stmt)
     return result.scalars().first()
+
 
 def get_client_by_pa(db: Session, client_pa: int) -> Optional[Client]:
     """
@@ -244,3 +247,43 @@ def set_client_activity(db: Session, client_id: int, is_active: bool) -> Optiona
     # await db.refresh(client)
 
     return client
+
+
+def create_payment(db: Session, payment: PaymentCreate) -> Payment | None:
+    """
+        Синхронно добавляет новый платеж в базу данных.
+
+        :param db: Активная синхронная сессия базы данных.
+        :param payment: Объект Pydantic с данными нового платежа.
+        :return: Созданный объект платежа (модель SQLAlchemy).
+        """
+
+    db_payment_data = payment.model_dump()
+
+    db_payment = Payment(**db_payment_data)
+    try:
+        db.add(db_payment)
+        db.commit()
+        return db_payment
+    except SQLAlchemyError as e:
+        db.rollback()
+
+
+def get_payments(db: Session, skip: int = 0, limit: int = 100) -> List[Payment]:
+    """
+    Синхронно получает список платежей с возможностью пагинации.
+
+    :param db: Активная синхронная сессия базы данных.
+    :param skip: Количество записей, которое нужно пропустить (смещение).
+    :param limit: Максимальное количество записей для возврата.
+    :return: Список объектов платежей (моделей SQLAlchemy).
+    """
+    # 1. Формируем синхронный запрос: SELECT * FROM clients
+    stmt = select(Payment).offset(skip).limit(limit)
+
+    # 2. Выполняем запрос
+    result = db.execute(stmt)
+
+    # 3. Получаем все результаты (scalar_all)
+    # .scalars() возвращает объекты модели Payment, а не кортежи
+    return result.scalars().all()

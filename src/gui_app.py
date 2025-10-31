@@ -4,12 +4,13 @@ from tkinter.constants import END
 
 from pydantic import ValidationError
 
-from src.models.clients import ClientUpdate, ClientForPayments
-from src.db.crud import create_client, search_clients, get_clients, get_tariffs
-from src.db.crud import get_client_by_id, delete_client, get_client_by_pa, update_client
+from src.db.crud import create_client, search_clients, get_clients, get_tariffs, get_payments
+from src.db.crud import get_client_by_id, delete_client, get_client_by_pa, update_client, create_payment
 from src.db.database import get_db, init_db
 from src.models.clients import ClientBase
 from src.models.clients import ClientCreate
+from src.models.clients import ClientUpdate, ClientForPayments
+from src.models.payments import PaymentCreate
 
 
 class BillingSysemApp(tkinter.Tk):
@@ -191,27 +192,27 @@ class BillingSysemApp(tkinter.Tk):
                 "Необходимо выбрать абонента!"
             )
         else:
-            client_id = select_client[0]
+            client_personal_account = select_client[0]
 
-        try:
-            if client_id:
-                for db in get_db():
-                    client = get_client_by_id(db, client_id)
-                    current_client = ClientBase(
-                        personal_account=int(client.personal_account),
-                        full_name=str(client.full_name),
-                        address=str(client.address),
-                        phone_number=str(client.phone_number),
-                        tariff=str(client.tariff),
-                        balance=float(client.balance),
-                    )
-                    new_window_edit_client = WindowAddClient(self)
-                    new_window_edit_client.set_data_client(current_client)
-                    break
+            try:
+                if client_personal_account:
+                    for db in get_db():
+                        client = get_client_by_pa(db, client_personal_account)
+                        current_client = ClientBase(
+                            personal_account=int(client.personal_account),
+                            full_name=str(client.full_name),
+                            address=str(client.address),
+                            phone_number=str(client.phone_number),
+                            tariff=str(client.tariff),
+                            balance=float(client.balance),
+                        )
+                        new_window_edit_client = WindowAddClient(self)
+                        new_window_edit_client.set_data_client(current_client)
+                        break
 
 
-        except Exception as e:
-            print(e)
+            except Exception as e:
+                print(e)
 
     def _delete_tariff(self):
         """Обрабатывает нажатие кнопки 'Удалить тариф'."""
@@ -233,11 +234,11 @@ class BillingSysemApp(tkinter.Tk):
                 "Необходимо выбрать абонента!"
             )
         else:
-            client_id = select_client[0]
+            client_personal_account = select_client[0]
             try:
-                if client_id:
+                if client_personal_account:
                     for db in get_db():
-                        client = get_client_by_id(db, client_id)
+                        client = get_client_by_pa(db, client_personal_account)
                         current_client = ClientForPayments(
                             personal_account=int(client.personal_account),
                             full_name=str(client.full_name),
@@ -462,6 +463,16 @@ class WindowAddPayment(tkinter.Toplevel):
             if personal_account and amount > 0.0:
                 for db in get_db():
                     current_client = get_client_by_pa(db, personal_account)
+
+                    new_payment = PaymentCreate(
+                        amount=amount,
+                        client_id=int(current_client.id),
+                    )
+                    new_payment_db = create_payment(db, new_payment)
+                    print(new_payment)
+                    print(new_payment_db)
+                    print(get_payments(db))
+
                     new_balance = amount + current_client.balance
                     client_for_update = ClientUpdate(
                         balance=new_balance,
@@ -472,6 +483,7 @@ class WindowAddPayment(tkinter.Toplevel):
                         "Успех!",
                         f"Внесена сумма: {amount} руб. \nдля Клиента: {current_client.full_name} \nЛицевой счёт: {current_client.personal_account}"
                     )
+
                     break
             self.destroy()
         except (Exception, ValidationError) as e:
