@@ -469,9 +469,6 @@ class WindowAddPayment(tkinter.Toplevel):
                         client_id=int(current_client.id),
                     )
                     new_payment_db = create_payment(db, new_payment)
-                    print(new_payment)
-                    print(new_payment_db)
-                    print(get_payments(db))
 
                     new_balance = amount + current_client.balance
                     client_for_update = ClientUpdate(
