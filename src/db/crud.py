@@ -61,6 +61,33 @@ def delete_client(db: Session, client_id: int) -> bool:
         return False
 
 
+def delete_tariff(db: Session, tariff_id: int) -> bool:
+    """
+            Синхронно удаляет тариф в базе данных.
+
+            :param db: Активная синхронная сессия базы данных.
+            :param tariff_id: Идентификатор клиента.
+            :return: True, если клиент был успешно удален, False в противном случае.
+            """
+    # 1. Формируем запрос на удаление
+    # DELETE FROM clients WHERE id = :client_id
+    try:
+        stmt = delete(Tariff).where(Tariff.id == tariff_id)
+
+        # 2. Выполняем запрос
+        db.execute(stmt)
+
+        # 3. Фиксируем изменения
+        db.commit()
+
+        # rowcount > 0 означает, что была удалена хотя бы одна запись
+        return True
+
+    except SQLAlchemyError as e:
+        db.rollback()
+        return False
+
+
 def get_client_by_id(db: Session, client_id: int) -> Optional[Client]:
     """
     Синхронно получает одного клиента по его уникальному ID.
@@ -173,17 +200,36 @@ def search_clients(db: Session, search_term: str) -> List[Client]:
     return result.scalars().all()
 
 
-def create_tariff(db: Session, tariff_data: TariffCreate) -> Tariff:
+def create_tariff(db: Session, tariff_data: TariffCreate) -> Tariff | None:
     """Добавляет новый тариф."""
-    db_tariff = Tariff(**tariff_data.model_dump())
-    db.add(db_tariff)
-    db.commit()
-    return db_tariff
+    try:
+        db_tariff = Tariff(**tariff_data.model_dump())
+        db.add(db_tariff)
+        db.commit()
+        return db_tariff
+    except SQLAlchemyError as e:
+        db.rollback()
 
 
 def get_tariff_by_name(db: Session, name: str) -> Optional[Tariff]:
     """Находит тариф по имени."""
     stmt = select(Tariff).where(func.lower(Tariff.name) == func.lower(name))
+    result = db.execute(stmt)
+    return result.scalars().first()
+
+
+def get_tariff_by_id(db: Session, tariff_id: int) -> Tariff | None:
+    """
+        Синхронно получает один тариф по его уникальному ID.
+
+        :param db: Активная синхронная сессия базы данных.
+        :param tariff_id: Уникальный ID тарифа.
+        :return: Объект клиента или None, если клиент не найден.
+        """
+    # Формируем запрос: SELECT * FROM clients WHERE id = :client_id
+    stmt = select(Tariff).where(Tariff.id == tariff_id)
+
+    # Выполняем запрос и возвращаем первый найденный объект (или None)
     result = db.execute(stmt)
     return result.scalars().first()
 
