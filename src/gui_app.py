@@ -68,8 +68,8 @@ class BillingSysemApp(tkinter.Tk):
         self.client_tree.column("Активен", width=60)
 
         ttk.Button(frame, text="Внести оплату", command=self._add_payment).pack(side="left", padx=5)
-        ttk.Button(frame, text="Приостановить").pack(side="left", padx=5)
-        ttk.Button(frame, text="Возобновить").pack(side="left", padx=5)
+        ttk.Button(frame, text="Приостановить", command=self._set_client_inactivity).pack(side="left", padx=5)
+        ttk.Button(frame, text="Возобновить", command=self._set_client_activity).pack(side="left", padx=5)
         ttk.Separator(frame, orient="vertical", style="black.TSeparator").pack(side="left", padx=5, pady=5)
         ttk.Button(frame, text="Добавить клиента", command=self._add_client).pack(side="left", padx=5)
         ttk.Button(frame, text="Редактировать клиента", command=self._edit_client).pack(side="left", padx=5)
@@ -170,8 +170,8 @@ class BillingSysemApp(tkinter.Tk):
         else:
             try:
                 for db in get_db():
-                    client = get_client_by_id(db, select_client[0])
-                    delete_client(db, select_client[0])
+                    client = get_client_by_pa(db, select_client[0])
+                    delete_client(db, int(client.id))
                     messagebox.showinfo(
                         "Успех",
                         f"Клиент {client.full_name} (ID: {client.id}) успешно удален!"
@@ -256,6 +256,53 @@ class BillingSysemApp(tkinter.Tk):
             except Exception as e:
                 print(e)
 
+    def _set_client_inactivity(self):
+        """Обрабатывает нажатие кнопки 'Приостановить'."""
+        select_client = self.client_tree.item(self.client_tree.focus()).get('values')
+        if not select_client:
+            messagebox.showerror(
+                "Внимание!",
+                "Необходимо выбрать абонента!"
+            )
+        else:
+            try:
+                for db in get_db():
+                    client = get_client_by_pa(db, select_client[0])
+                    result = messagebox.askyesno(
+                        "Подтверждение действия",
+                        "Вы уверены, что хотите приостановить выбранного Абонента?"
+                    )
+                    if result:
+                        update_client(db, client.id, ClientUpdate(is_active=False))
+                    break
+            except Exception as e:
+                messagebox.showerror("Ошибка операции!", f"Не удалось изменить статус абонента! \nПодробности:\n{e}")
+
+            self._search_clients()
+
+    def _set_client_activity(self):
+        """Обрабатывает нажатие кнопки 'Возобновить'."""
+        select_client = self.client_tree.item(self.client_tree.focus()).get('values')
+        if not select_client:
+            messagebox.showerror(
+                "Внимание!",
+                "Необходимо выбрать абонента!"
+            )
+        else:
+            try:
+                for db in get_db():
+                    client = get_client_by_pa(db, select_client[0])
+                    result = messagebox.askyesno(
+                        "Подтверждение действия",
+                        "Вы уверены, что хотите возобновить выбранного Абонента?"
+                    )
+                    if result:
+                        update_client(db, client.id, ClientUpdate(is_active=True))
+                    break
+            except Exception as e:
+                messagebox.showerror("Ошибка операции!", f"Не удалось изменить статус абонента! \nПодробности:\n{e}")
+
+            self._search_clients()
 
 class WindowAddClient(tkinter.Toplevel):
     """Класс для вызова окна добавления клиента."""
