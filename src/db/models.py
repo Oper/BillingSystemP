@@ -14,6 +14,7 @@ class StatusEnum(str, enum.Enum):
     FAILED = "Неудачный"
     REFUNDED = "Возвращен"
 
+
 class CurrencyEnum(str, enum.Enum):
     RUB = "Рубль"
     USD = "Доллар"
@@ -37,6 +38,7 @@ class Client(BaseModel):
         return f'Client (id={self.id}, name={self.full_name}, balance={self.balance}, is_active={self.is_active})'
 
 
+
 class Service(BaseModel):
     """Модель услуг TODO"""
     __tablename__ = 'services'
@@ -45,6 +47,7 @@ class Service(BaseModel):
 
     def __repr__(self):
         return f'Service (name={self.service_name}, price={self.service_price})'
+
 
 
 class Tariff(BaseModel):
@@ -57,6 +60,8 @@ class Tariff(BaseModel):
     def __repr__(self):
         return f"Tariff(id={self.id}, name='{self.name}', price={self.monthly_price})"
 
+
+
 class Payment(BaseModel):
     """Модель платежей"""
     __tablename__ = 'payments'
@@ -68,4 +73,5 @@ class Payment(BaseModel):
     client: Mapped["Client"] = relationship("Client", back_populates="payments")
 
     def __repr__(self):
-        return f'Payment (amount={self.amount}, ЛС Клиента={self.client.personal_account})'
+        return f'Payment (amount={self.amount}, ЛС Клиента={self.client_id})'
+

@@ -4,7 +4,6 @@ from sqlalchemy import select, or_, func, delete
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
-from db.models import Client, Payment
 from src.db.models import Client, Tariff, Payment
 from src.models.clients import ClientCreate, ClientUpdate
 from src.models.payments import PaymentCreate

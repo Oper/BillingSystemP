@@ -4,8 +4,8 @@ from tkinter.constants import END
 
 from pydantic import ValidationError
 
-from src.db.crud import create_client, search_clients, get_clients, get_tariffs, get_payments
-from src.db.crud import get_client_by_id, delete_client, get_client_by_pa, update_client, create_payment
+from src.db.crud import get_client_by_id, delete_client, get_client_by_pa, update_client, create_payment, create_client, \
+    search_clients, get_clients, get_tariffs, get_payments
 from src.db.database import get_db, init_db
 from src.models.clients import ClientBase
 from src.models.clients import ClientCreate
