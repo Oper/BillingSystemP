@@ -4,6 +4,7 @@ from tkinter.constants import END
 
 from pydantic import ValidationError
 
+from db.crud import set_client_activity
 from src.models.tariffs import TariffCreate
 from src.db.crud import delete_tariff, delete_client, get_client_by_pa, update_client, create_payment, create_client, \
     search_clients, get_clients, get_tariffs, create_tariff, get_tariff_by_name
@@ -341,7 +342,7 @@ class BillingSysemApp(tkinter.Tk):
                         "Вы уверены, что хотите приостановить выбранного Абонента?"
                     )
                     if result:
-                        update_client(db, client.id, ClientUpdate(is_active=False))
+                        set_client_activity(db, int(client.id), False)
                     break
             except Exception as e:
                 messagebox.showerror("Ошибка операции!", f"Не удалось изменить статус абонента! \nПодробности:\n{e}")
@@ -365,7 +366,7 @@ class BillingSysemApp(tkinter.Tk):
                         "Вы уверены, что хотите возобновить выбранного Абонента?"
                     )
                     if result:
-                        update_client(db, client.id, ClientUpdate(is_active=True))
+                        set_client_activity(db, int(client.id), True)
                     break
             except Exception as e:
                 messagebox.showerror("Ошибка операции!", f"Не удалось изменить статус абонента! \nПодробности:\n{e}")
