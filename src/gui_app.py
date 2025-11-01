@@ -400,7 +400,9 @@ class WindowAddClient(tkinter.Toplevel):
         self.phone_entry.grid(row=3, column=1, padx=5, pady=5)
 
         ttk.Label(self, text="Тариф:").grid(row=4, column=0, padx=5, pady=5, sticky="w")
-        self.tariff_entry = ttk.Combobox(self, width=40)
+        self.tariff_entry = ttk.Combobox(self, state="readonly", width=37)
+        self.tariff_entry["values"] = (self._get_tariffs() if len(self._get_tariffs()) > 0 else ["Нет тарифов"])
+        self.tariff_entry.current(0)
         self.tariff_entry.grid(row=4, column=1, padx=5, pady=5)
 
         ttk.Label(self, text="Баланс:").grid(row=5, column=0, padx=5, pady=5, sticky="w")
@@ -520,6 +522,27 @@ class WindowAddClient(tkinter.Toplevel):
                 "Заполните все поля!"
             )
 
+    def _get_tariffs(self):
+        """Получает тарифы из базы и возвращает списком"""
+        try:
+            list_tariffs = []
+            for db in get_db():
+                tariffs = get_tariffs(db)
+                if tariffs:
+
+                    for tariff in tariffs:
+                        list_tariffs.append(tariff.name)
+                    return list_tariffs
+                else:
+                    messagebox.showerror(
+                        "Ошибка!",
+                        "Нет тарифов, сначала необходимо добавить тариф!"
+                    )
+                break
+            return list_tariffs
+        except Exception as e:
+
+            self.destroy()
 
 class WindowAddPayment(tkinter.Toplevel):
     """Класс для вызова окна внесения оплаты."""
