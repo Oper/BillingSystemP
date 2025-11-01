@@ -244,7 +244,7 @@ def get_tariffs(db: Session, skip: int = 0, limit: int = 100) -> List[Tariff]:
 def apply_monthly_charge(db: Session, client_id: int) -> Optional[Client]:
     """
     Рассчитывает ежемесячную плату для клиента и вычитает ее из баланса.
-
+    :param db: Активная синхронная сессия базы данных.
     :param client_id: ID клиента.
     :return: Обновленный объект клиента или None.
     """
@@ -273,7 +273,7 @@ def apply_monthly_charge(db: Session, client_id: int) -> Optional[Client]:
 def set_client_activity(db: Session, client_id: int, is_active: bool) -> Optional[Client]:
     """
     Приостанавливает (is_active=False) или возобновляет (is_active=True) обслуживание клиента.
-
+    :param db: Активная синхронная сессия базы данных.
     :param client_id: ID клиента.
     :param is_active: Новый статус активности (True/False).
     :return: Обновленный объект клиента или None.
@@ -331,4 +331,13 @@ def get_payments(db: Session, skip: int = 0, limit: int = 100) -> List[Payment]:
 
     # 3. Получаем все результаты (scalar_all)
     # .scalars() возвращает объекты модели Payment, а не кортежи
+    return result.scalars().all()
+
+
+def get_debtors_report(db: Session) -> List[Client]:
+    """Формирует отчет: получает список всех клиентов, чей баланс меньше 0 (должники).
+    :param db: Активная синхронная сессия базы данных.
+    """
+    stmt = select(Client).where(Client.balance < 0).order_by(Client.balance)
+    result = db.execute(stmt)
     return result.scalars().all()
