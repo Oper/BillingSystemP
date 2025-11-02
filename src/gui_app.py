@@ -4,10 +4,9 @@ from tkinter.constants import END
 
 from pydantic import ValidationError
 
-from db.crud import set_client_activity
 from src.models.tariffs import TariffCreate
 from src.db.crud import delete_tariff, delete_client, get_client_by_pa, update_client, create_payment, create_client, \
-    search_clients, get_clients, get_tariffs, create_tariff, get_tariff_by_name
+    search_clients, get_clients, get_tariffs, create_tariff, get_tariff_by_name, set_client_activity
 from src.db.database import get_db, init_db
 from src.models.clients import ClientBase
 from src.models.clients import ClientCreate
@@ -544,6 +543,7 @@ class WindowAddClient(tkinter.Toplevel):
         except Exception as e:
 
             self.destroy()
+
 
 class WindowAddPayment(tkinter.Toplevel):
     """Класс для вызова окна внесения оплаты."""
