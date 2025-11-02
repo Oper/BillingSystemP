@@ -23,6 +23,13 @@ class BillingSysemApp(tkinter.Tk):
         self.geometry("800x600")
         self.resizable(width=False, height=False)
 
+        # Стиль ttk (чтобы виджеты выглядели лучше)
+        style = ttk.Style(self)
+        # Попробуйте "clam", "alt", "default", "vista", "xpnative" (зависит от ОС)
+        try:
+            style.theme_use("clam")
+        except tkinter.TclError:
+            print("Тема 'clam' не найдена, используется 'default'")
         # Инициализация БД
         init_db()
 
@@ -83,6 +90,7 @@ class BillingSysemApp(tkinter.Tk):
         ttk.Button(frame, text="Удалить клиента", command=self._delete_client).pack(side="left", padx=5)
         # Загрузка данных при старте
         self._load_clients()
+        self.client_tree.bind("<Double-Button-1>", self._open_edit_window)
 
     def _setup_tariffs_tab(self, frame):
         """Создает элементы для вкладки 'Тарифы'."""
@@ -371,6 +379,15 @@ class BillingSysemApp(tkinter.Tk):
                 messagebox.showerror("Ошибка операции!", f"Не удалось изменить статус абонента! \nПодробности:\n{e}")
 
             self._search_clients()
+
+    def _open_edit_window(self, event):
+        """"""
+        item_id = self.client_tree.identify_row(event.y)
+        if not item_id:
+            return
+        item_data = self.client_tree.item(item_id)
+        values = item_data['values']
+        new_window = WindowEditAndViewClient(self)
 
 
 class WindowAddClient(tkinter.Toplevel):
@@ -683,6 +700,124 @@ class WindowAddTariff(tkinter.Toplevel):
 
         except Exception as e:
             messagebox.showerror("Ошибка добавления", f"Не удалось добавить тариф:\n{e}")
+
+
+class WindowEditAndViewClient(tkinter.Toplevel):
+    def __init__(self, parent):
+        super().__init__(parent)
+
+        self.title("Карточка абонента")
+        self.geometry("650x700")
+
+        main_frame = ttk.Frame(self, padding=20)
+        main_frame.pack(fill='both', expand=True)
+
+        main_frame.columnconfigure(1, weight=1)
+
+        current_row = 0
+
+        ttk.Label(main_frame, text="Лицевой счет:").grid(row=current_row, column=0, sticky='w', padx=5, pady=5)
+        self.entry_account_id = ttk.Entry(main_frame)
+        self.entry_account_id.grid(row=current_row, column=1, sticky='we', padx=5, pady=5)
+        current_row += 1
+
+        ttk.Label(main_frame, text="ФИО:").grid(row=current_row, column=0, sticky='w', padx=5, pady=5)
+        self.entry_full_name = ttk.Entry(main_frame)
+        self.entry_full_name.grid(row=current_row, column=1, sticky='we', padx=5, pady=5)
+        current_row += 1
+
+        ttk.Label(main_frame, text="Адрес:").grid(row=current_row, column=0, sticky='nw', padx=5, pady=5)
+        self.text_address = tkinter.Text(main_frame, height=3, width=40, relief='solid', borderwidth=1)
+        self.text_address.grid(row=current_row, column=1, sticky='we', padx=5, pady=5)
+        current_row += 1
+
+        ttk.Label(main_frame, text="Статус:").grid(row=current_row, column=0, sticky='w', padx=5, pady=5)
+        self.combo_status = ttk.Combobox(main_frame, values=["Активен", "Заблокирован", "Отключен"])
+        self.combo_status.grid(row=current_row, column=1, sticky='w', padx=5,
+                               pady=5)
+        self.combo_status.current(0)
+        current_row += 1
+
+        ttk.Label(main_frame, text="Дата подключения:").grid(row=current_row, column=0, sticky='w', padx=5, pady=5)
+        self.entry_connect_date = ttk.Entry(main_frame)
+        self.entry_connect_date.grid(row=current_row, column=1, sticky='w', padx=5, pady=5)  # sticky='w'
+        current_row += 1
+
+        ttk.Label(main_frame, text="Паспортные данные:").grid(row=current_row, column=0, sticky='nw', padx=5, pady=5)
+        self.text_passport = tkinter.Text(main_frame, height=3, width=40, relief='solid', borderwidth=1)
+        self.text_passport.grid(row=current_row, column=1, sticky='we', padx=5, pady=5)
+        current_row += 1
+
+        payments_frame = ttk.LabelFrame(main_frame, text="Список платежей")
+        payments_frame.grid(row=current_row, column=0, columnspan=2, sticky='we', padx=5, pady=10)
+
+        payments_frame.columnconfigure(0, weight=1)
+        payments_frame.rowconfigure(0, weight=1)
+
+        cols = ('date', 'amount', 'type')
+        self.tree_payments = ttk.Treeview(payments_frame, columns=cols, show='headings', height=5)
+
+        # Настраиваем заголовки
+        self.tree_payments.heading('date', text='Дата')
+        self.tree_payments.heading('amount', text='Сумма')
+        self.tree_payments.heading('type', text='Тип')
+
+        # Настраиваем ширину колонок
+        self.tree_payments.column('date', width=100, anchor='center')
+        self.tree_payments.column('amount', width=100, anchor='e')  # 'e' = east (по правому краю)
+        self.tree_payments.column('type', width=150)
+
+        scrollbar = ttk.Scrollbar(payments_frame, orient=tkinter.VERTICAL, command=self.tree_payments.yview)
+        self.tree_payments.configure(yscrollcommand=scrollbar.set)
+
+        self.tree_payments.grid(row=0, column=0, sticky='nsew')
+        scrollbar.grid(row=0, column=1, sticky='ns')
+
+        current_row += 1
+
+        buttons_frame = ttk.Frame(main_frame)
+        buttons_frame.grid(row=current_row, column=0, columnspan=2, sticky='e',
+                           pady=15)
+
+        self.btn_gen_contract = ttk.Button(buttons_frame, text="Сформировать договор", command=self.generate_contract)
+        self.btn_gen_contract.pack(side='left', padx=5)
+
+        self.btn_gen_app = ttk.Button(buttons_frame, text="Сформировать заявление", command=self.generate_app)
+        self.btn_gen_app.pack(side='left', padx=5)
+
+        self.btn_ok = ttk.Button(buttons_frame, text="OK", command=self.on_ok)
+        self.btn_ok.pack(side='right', padx=5)
+
+        self.btn_cancel = ttk.Button(buttons_frame, text="Отмена", command=self.on_cancel)
+        self.btn_cancel.pack(side='right', padx=5)
+
+        self.transient(parent)
+
+    def on_ok(self):
+        """TODO Функция сохранения данных"""
+        # Здесь должна быть логика сохранения данных
+        print("Нажата кнопка OK")
+
+        # Пример получения данных из полей:
+        print(f"Лицевой счет: {self.entry_account_id.get()}")
+        print(f"ФИО: {self.entry_full_name.get()}")
+        print(f"Статус: {self.combo_status.get()}")
+        # Для Text-виджета '1.0' - с 1-й строки, 0-го символа. 'end-1c' - до конца, убрав последний символ новой строки
+        print(f"Адрес: {self.text_address.get('1.0', 'end-1c')}")
+
+        self.destroy()  # Закрываем окно
+
+    def on_cancel(self):
+        """Функция закрытия окна"""
+        self.destroy()
+
+    def generate_contract(self):
+        """TODO Формирование договора с клиентом."""
+        pass
+
+    def generate_app(self):
+        """TODO Формирование формы заявления на подключение"""
+        pass
 
 
 # --- Запуск приложения ---
