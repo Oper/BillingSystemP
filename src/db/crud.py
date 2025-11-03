@@ -341,3 +341,15 @@ def get_debtors_report(db: Session) -> List[Client]:
     stmt = select(Client).where(Client.balance < 0).order_by(Client.balance)
     result = db.execute(stmt)
     return result.scalars().all()
+
+def get_payments_by_client(db: Session, client_id: int) -> List[Payment]:
+    """
+    Синхронно получает список платежей с Клиента.
+
+    :param client_id: ID Клиента.
+    :param db: Активная синхронная сессия базы данных.
+    :return: Список объектов платежей (моделей SQLAlchemy).
+    """
+    stmt = select(Payment).where(Payment.client_id == client_id)
+    result = db.execute(stmt)
+    return result.scalars().all()
