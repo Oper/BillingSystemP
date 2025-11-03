@@ -4,14 +4,12 @@ from tkinter.constants import END
 
 from pydantic import ValidationError
 
-from src.models.tariffs import TariffCreate
 from src.db.crud import delete_tariff, delete_client, get_client_by_pa, update_client, create_payment, create_client, \
-    search_clients, get_clients, get_tariffs, create_tariff, get_tariff_by_name, set_client_activity
+    search_clients, get_clients, get_tariffs, create_tariff, get_tariff_by_name, set_client_activity, get_payments_by_client
 from src.db.database import get_db, init_db
-from src.models.clients import ClientBase
-from src.models.clients import ClientCreate
-from src.models.clients import ClientUpdate, ClientForPayments
+from src.models.clients import ClientUpdate, ClientForPayments, ClientCard, ClientCreate, ClientBase
 from src.models.payments import PaymentCreate
+from src.models.tariffs import TariffCreate
 
 
 class BillingSysemApp(tkinter.Tk):
@@ -388,6 +386,24 @@ class BillingSysemApp(tkinter.Tk):
         item_data = self.client_tree.item(item_id)
         values = item_data['values']
         new_window = WindowEditAndViewClient(self)
+        current_client = None
+        try:
+            for db in get_db():
+                client = get_client_by_pa(db, values[0])
+                current_client = ClientCard(
+                    personal_account=client.personal_account,
+                    full_name=client.full_name,
+                    address=client.address,
+                    phone_number=client.phone_number,
+                    tariff=client.tariff,
+                    client_id=client.id,
+                    is_active=client.is_active,
+                    connection_date=client.connection_date,
+                )
+                break
+        except Exception as e:
+            print(e)
+        new_window._set_data_client(current_client)
 
 
 class WindowAddClient(tkinter.Toplevel):
@@ -703,6 +719,8 @@ class WindowAddTariff(tkinter.Toplevel):
 
 
 class WindowEditAndViewClient(tkinter.Toplevel):
+    """Класс для вызова окна Карточка абонента."""
+
     def __init__(self, parent):
         super().__init__(parent)
 
@@ -717,13 +735,13 @@ class WindowEditAndViewClient(tkinter.Toplevel):
         current_row = 0
 
         ttk.Label(main_frame, text="Лицевой счет:").grid(row=current_row, column=0, sticky='w', padx=5, pady=5)
-        self.entry_account_id = ttk.Entry(main_frame)
-        self.entry_account_id.grid(row=current_row, column=1, sticky='we', padx=5, pady=5)
+        self.personal_account_entry = ttk.Entry(main_frame)
+        self.personal_account_entry.grid(row=current_row, column=1, sticky='we', padx=5, pady=5)
         current_row += 1
 
         ttk.Label(main_frame, text="ФИО:").grid(row=current_row, column=0, sticky='w', padx=5, pady=5)
-        self.entry_full_name = ttk.Entry(main_frame)
-        self.entry_full_name.grid(row=current_row, column=1, sticky='we', padx=5, pady=5)
+        self.full_name_entry = ttk.Entry(main_frame)
+        self.full_name_entry.grid(row=current_row, column=1, sticky='we', padx=5, pady=5)
         current_row += 1
 
         ttk.Label(main_frame, text="Адрес:").grid(row=current_row, column=0, sticky='nw', padx=5, pady=5)
@@ -731,16 +749,20 @@ class WindowEditAndViewClient(tkinter.Toplevel):
         self.text_address.grid(row=current_row, column=1, sticky='we', padx=5, pady=5)
         current_row += 1
 
+        ttk.Label(main_frame, text="Телефон:").grid(row=current_row, column=0, sticky='nw', padx=5, pady=5)
+        self.phone_entry = tkinter.Entry(main_frame, width=40, relief='solid', borderwidth=1)
+        self.phone_entry.grid(row=current_row, column=1, sticky='we', padx=5, pady=5)
+        current_row += 1
+
         ttk.Label(main_frame, text="Статус:").grid(row=current_row, column=0, sticky='w', padx=5, pady=5)
         self.combo_status = ttk.Combobox(main_frame, values=["Активен", "Заблокирован", "Отключен"])
         self.combo_status.grid(row=current_row, column=1, sticky='w', padx=5,
                                pady=5)
-        self.combo_status.current(0)
         current_row += 1
 
         ttk.Label(main_frame, text="Дата подключения:").grid(row=current_row, column=0, sticky='w', padx=5, pady=5)
-        self.entry_connect_date = ttk.Entry(main_frame)
-        self.entry_connect_date.grid(row=current_row, column=1, sticky='w', padx=5, pady=5)  # sticky='w'
+        self.connect_date_entry = ttk.Entry(main_frame)
+        self.connect_date_entry.grid(row=current_row, column=1, sticky='w', padx=5, pady=5)  # sticky='w'
         current_row += 1
 
         ttk.Label(main_frame, text="Паспортные данные:").grid(row=current_row, column=0, sticky='nw', padx=5, pady=5)
@@ -793,17 +815,33 @@ class WindowEditAndViewClient(tkinter.Toplevel):
 
         self.transient(parent)
 
+    def _set_data_client(self, client: ClientCard):
+        """Функция заполняет данные абонента из базы в Карточку абонента.
+        :param client: Базовая модель Клиента.
+        """
+        self.personal_account_entry.insert(0, client.personal_account)
+        self.full_name_entry.insert(0, client.full_name)
+        self.text_address.insert(1.0, client.address)
+        self.phone_entry.insert(0, client.phone_number)
+        self.combo_status.insert(0, "Активный" if client.is_active else "Неактивный")
+        self.connect_date_entry.insert(0, str(client.connection_date.date()))
+        self.text_passport.insert(1.0, "Тут буду паспортные данные")
+        for item in self.tree_payments.get_children():
+            self.tree_payments.delete(item)
+
+        for db in get_db():
+            for payment in get_payments_by_client(db, client_id=client.client_id):
+
+                (self.tree_payments.insert("", "end", values=(
+                    payment.payment_date,
+                    payment.amount,
+                    payment.status
+                )))
+
     def on_ok(self):
         """TODO Функция сохранения данных"""
         # Здесь должна быть логика сохранения данных
         print("Нажата кнопка OK")
-
-        # Пример получения данных из полей:
-        print(f"Лицевой счет: {self.entry_account_id.get()}")
-        print(f"ФИО: {self.entry_full_name.get()}")
-        print(f"Статус: {self.combo_status.get()}")
-        # Для Text-виджета '1.0' - с 1-й строки, 0-го символа. 'end-1c' - до конца, убрав последний символ новой строки
-        print(f"Адрес: {self.text_address.get('1.0', 'end-1c')}")
 
         self.destroy()  # Закрываем окно
 
