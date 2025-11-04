@@ -5,7 +5,8 @@ from tkinter.constants import END
 from pydantic import ValidationError
 
 from src.db.crud import delete_tariff, delete_client, get_client_by_pa, update_client, create_payment, create_client, \
-    search_clients, get_clients, get_tariffs, create_tariff, get_tariff_by_name, set_client_activity, get_payments_by_client
+    search_clients, get_clients, get_tariffs, create_tariff, get_tariff_by_name, set_client_activity, \
+    get_payments_by_client
 from src.db.database import get_db, init_db
 from src.models.clients import ClientUpdate, ClientForPayments, ClientCard, ClientCreate, ClientBase
 from src.models.payments import PaymentCreate
@@ -399,11 +400,13 @@ class BillingSysemApp(tkinter.Tk):
                     client_id=client.id,
                     is_active=client.is_active,
                     connection_date=client.connection_date,
+                    passport=client.passport
                 )
                 break
         except Exception as e:
             print(e)
-        new_window._set_data_client(current_client)
+        new_window.set_data_client(current_client)
+        self._load_clients()
 
 
 class WindowAddClient(tkinter.Toplevel):
@@ -510,7 +513,6 @@ class WindowAddClient(tkinter.Toplevel):
         self.full_name_entry.insert(0, client.full_name)
         self.address_entry.insert(0, client.address)
         self.phone_entry.insert(0, client.phone_number)
-        self.tariff_entry.insert(0, client.tariff)
         self.balance_entry.insert(0, client.balance)
 
     def _send_data_client(self):
@@ -754,8 +756,14 @@ class WindowEditAndViewClient(tkinter.Toplevel):
         self.phone_entry.grid(row=current_row, column=1, sticky='we', padx=5, pady=5)
         current_row += 1
 
+        ttk.Label(main_frame, text="Тариф:").grid(row=current_row, column=0, sticky='w', padx=5, pady=5)
+        self.tariff_entry = ttk.Combobox(main_frame, state="readonly", values=self._get_tariffs())
+        self.tariff_entry.grid(row=current_row, column=1, sticky='w', padx=5,
+                               pady=5)
+        current_row += 1
+
         ttk.Label(main_frame, text="Статус:").grid(row=current_row, column=0, sticky='w', padx=5, pady=5)
-        self.combo_status = ttk.Combobox(main_frame, values=["Активен", "Заблокирован", "Отключен"])
+        self.combo_status = ttk.Combobox(main_frame, state="readonly", values=["Активный", "Неактивный"])
         self.combo_status.grid(row=current_row, column=1, sticky='w', padx=5,
                                pady=5)
         current_row += 1
@@ -766,8 +774,21 @@ class WindowEditAndViewClient(tkinter.Toplevel):
         current_row += 1
 
         ttk.Label(main_frame, text="Паспортные данные:").grid(row=current_row, column=0, sticky='nw', padx=5, pady=5)
-        self.text_passport = tkinter.Text(main_frame, height=3, width=40, relief='solid', borderwidth=1)
-        self.text_passport.grid(row=current_row, column=1, sticky='we', padx=5, pady=5)
+        current_row += 1
+
+        ttk.Label(main_frame, text="Серия и номер:").grid(row=current_row, column=0)
+        self.passport_ser_num = ttk.Entry(main_frame)
+        self.passport_ser_num.grid(row=current_row, column=1, sticky='we', padx=5, pady=5)
+        current_row += 1
+
+        ttk.Label(main_frame, text="Дата выдачи:").grid(row=current_row, column=0)
+        self.passport_data = ttk.Entry(main_frame)
+        self.passport_data.grid(row=current_row, column=1, sticky='we', padx=5, pady=5)
+        current_row += 1
+
+        ttk.Label(main_frame, text="Кем выдан:").grid(row=current_row, column=0)
+        self.passport_how = ttk.Entry(main_frame)
+        self.passport_how.grid(row=current_row, column=1, sticky='we', padx=5, pady=5)
         current_row += 1
 
         payments_frame = ttk.LabelFrame(main_frame, text="Список платежей")
@@ -786,8 +807,8 @@ class WindowEditAndViewClient(tkinter.Toplevel):
 
         # Настраиваем ширину колонок
         self.tree_payments.column('date', width=100, anchor='center')
-        self.tree_payments.column('amount', width=100, anchor='e')  # 'e' = east (по правому краю)
-        self.tree_payments.column('type', width=150)
+        self.tree_payments.column('amount', width=100, anchor='center')
+        self.tree_payments.column('type', width=150, anchor='center')
 
         scrollbar = ttk.Scrollbar(payments_frame, orient=tkinter.VERTICAL, command=self.tree_payments.yview)
         self.tree_payments.configure(yscrollcommand=scrollbar.set)
@@ -815,34 +836,60 @@ class WindowEditAndViewClient(tkinter.Toplevel):
 
         self.transient(parent)
 
-    def _set_data_client(self, client: ClientCard):
+    def set_data_client(self, client: ClientCard):
         """Функция заполняет данные абонента из базы в Карточку абонента.
         :param client: Базовая модель Клиента.
         """
-        self.personal_account_entry.insert(0, client.personal_account)
+        passport_client = client.passport
+
+        self.personal_account_entry.insert(0, int(client.personal_account))
         self.full_name_entry.insert(0, client.full_name)
         self.text_address.insert(1.0, client.address)
         self.phone_entry.insert(0, client.phone_number)
-        self.combo_status.insert(0, "Активный" if client.is_active else "Неактивный")
+        self.tariff_entry.current(self._get_tariffs().index(client.tariff))
+        self.combo_status.current(0 if client.is_active else 1)
         self.connect_date_entry.insert(0, str(client.connection_date.date()))
-        self.text_passport.insert(1.0, "Тут буду паспортные данные")
+        self.passport_ser_num.insert(0, passport_client.get("ser_num"))
+        self.passport_data.insert(0, passport_client.get("date"))
+        self.passport_how.insert(0, passport_client.get("how"))
         for item in self.tree_payments.get_children():
             self.tree_payments.delete(item)
 
         for db in get_db():
             for payment in get_payments_by_client(db, client_id=client.client_id):
-
                 (self.tree_payments.insert("", "end", values=(
                     payment.payment_date,
                     payment.amount,
-                    payment.status
+                    payment.status.title(),
                 )))
 
     def on_ok(self):
-        """TODO Функция сохранения данных"""
-        # Здесь должна быть логика сохранения данных
-        print("Нажата кнопка OK")
+        """Функция сохранения данных из карточки Абонента."""
+        # Получаем данные из формы Карточка Абонента
+        personal_account_client = self.personal_account_entry.get()  # Получаем лицевой счет Абонента
 
+        passport = {
+            "ser_num": self.passport_ser_num.get(),
+            "date": self.passport_data.get(),
+            "how": self.passport_how.get(),
+        }
+        current_client = ClientUpdate(
+            full_name=self.full_name_entry.get(),
+            phone_number=self.phone_entry.get(),
+            tariff=self.tariff_entry.get(),
+            is_active=(True if self.combo_status.get() == "Активный" else False),
+            passport=passport,
+        )
+        try:
+            for db in get_db():
+                client = get_client_by_pa(db, int(personal_account_client))
+                update_client(db, client.id, current_client)
+                break
+        except Exception as e:
+            messagebox.showerror(
+                "Ошибка!",
+                f"Не удалось обновить клиента. \nПодробности: {e}"
+            )
         self.destroy()  # Закрываем окно
 
     def on_cancel(self):
@@ -856,6 +903,28 @@ class WindowEditAndViewClient(tkinter.Toplevel):
     def generate_app(self):
         """TODO Формирование формы заявления на подключение"""
         pass
+
+    def _get_tariffs(self):
+        """Получает тарифы из базы и возвращает списком"""
+        try:
+            list_tariffs = []
+            for db in get_db():
+                tariffs = get_tariffs(db)
+                if tariffs:
+
+                    for tariff in tariffs:
+                        list_tariffs.append(tariff.name)
+                    return list_tariffs
+                else:
+                    list_tariffs[0] = "Нет"
+                break
+            return list_tariffs
+        except Exception as e:
+            messagebox.showerror(
+                "Ошибка!",
+                f"Возникла ошибка!\nПодробности: \n{e}"
+            )
+
 
 
 # --- Запуск приложения ---

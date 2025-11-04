@@ -27,6 +27,7 @@ class ClientCard(ClientBase):
     client_id: int
     is_active: int
     connection_date: datetime
+    passport: Optional[dict] = None
 
 
 class ClientUpdate(ClientBase):
