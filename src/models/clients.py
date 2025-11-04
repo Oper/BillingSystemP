@@ -38,6 +38,7 @@ class ClientUpdate(ClientBase):
     tariff: Optional[str] = None
     balance: Optional[float] = None
     is_active: Optional[int] = None
+    passport: Optional[dict] = None
 
 
 class ClientInDB(ClientBase):
