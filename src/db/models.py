@@ -30,6 +30,7 @@ class Client(BaseModel):
     phone_number: Mapped[str] = mapped_column(unique=True)
     tariff: Mapped[str] = mapped_column(nullable=False)
     connection_date: Mapped[datetime] = mapped_column(server_default=func.now())
+    accrual_date: Mapped[datetime] = mapped_column(nullable=True)
     balance: Mapped[float] = mapped_column(default=0.0)
     is_active: Mapped[bool] = mapped_column(default=True)
     passport: Mapped[str] = mapped_column(JSON, default=lambda: {})

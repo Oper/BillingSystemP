@@ -1,4 +1,5 @@
 import tkinter
+from datetime import date
 from tkinter import ttk, messagebox
 from tkinter.constants import END
 
@@ -6,7 +7,7 @@ from pydantic import ValidationError
 
 from src.db.crud import delete_tariff, delete_client, get_client_by_pa, update_client, create_payment, create_client, \
     search_clients, get_clients, get_tariffs, create_tariff, get_tariff_by_name, set_client_activity, \
-    get_payments_by_client
+    get_payments_by_client, apply_monthly_charge, apply_daily_charge
 from src.db.database import get_db, init_db
 from src.models.clients import ClientUpdate, ClientForPayments, ClientCard, ClientCreate, ClientBase
 from src.models.payments import PaymentCreate
@@ -26,9 +27,9 @@ class BillingSysemApp(tkinter.Tk):
         style = ttk.Style(self)
         # Попробуйте "clam", "alt", "default", "vista", "xpnative" (зависит от ОС)
         try:
-            style.theme_use("clam")
+            style.theme_use("vista")
         except tkinter.TclError:
-            print("Тема 'clam' не найдена, используется 'default'")
+            print("Тема 'vista' не найдена, используется 'default'")
         # Инициализация БД
         init_db()
 
@@ -50,6 +51,12 @@ class BillingSysemApp(tkinter.Tk):
         # Наполнение вкладок
         self._setup_abonents_tab(abonents)
         self._setup_tariffs_tab(tariffs)
+
+        self.date_todey = date.today()
+
+        print(self.date_todey.month, self.date_todey.day)
+        if 1 < self.date_todey.day < 10:
+            self._accrual_of_amounts()
 
     def _setup_abonents_tab(self, frame):
         """Создает элементы для вкладки 'Абоненты'."""
@@ -408,6 +415,27 @@ class BillingSysemApp(tkinter.Tk):
         new_window.set_data_client(current_client)
         self._load_clients()
 
+    def _accrual_of_amounts(self):
+        """Метод начисления ежемесячной оплаты Абонентам."""
+        try:
+            for db in get_db():
+                clients = get_clients(db)
+                for client in clients:
+                    if client.accrual_date is None:
+                        count_days = client.connection_date.day - self.date_todey.day
+                        result_apply_daily_charge = apply_daily_charge(db, client.id, count_days)
+                        if result_apply_daily_charge:
+                            client.accrual_date = self.date_todey
+                    else:
+                        result_apply_monthly_charge = apply_monthly_charge(db, client.id)
+                        if result_apply_monthly_charge:
+                            client.accrual_date = self.date_todey
+        except Exception as e:
+            messagebox.showerror(
+                "Ошибка!",
+                f"Ошибка начисления оплаты!\nПодробнее:\n{e}"
+            )
+
 
 class WindowAddClient(tkinter.Toplevel):
     """Класс для вызова окна добавления клиента."""
@@ -456,7 +484,7 @@ class WindowAddClient(tkinter.Toplevel):
         self.transient(parent)
         self.grab_set()
 
-    def _add_client(self, data):
+    def _add_client(self, data: ClientCreate):
         """Обрабатывает нажатие кнопки "Добавить Клиента"."""
         try:
 
@@ -473,6 +501,7 @@ class WindowAddClient(tkinter.Toplevel):
 
         except Exception as e:
             messagebox.showerror("Ошибка добавления", f"Не удалось добавить клиента:\n{e}")
+            print(e)
 
     def _update_client(self, client_id: int, client: ClientUpdate):
         """Редактирование Клиента в дополнительном окне.
@@ -527,11 +556,10 @@ class WindowAddClient(tkinter.Toplevel):
             "tariff": self.tariff_entry.get(),
             "balance": self.balance_entry.get(),
         }
-
+        print(window_data)
         if window_data.values():
             try:
                 data = ClientCreate(**window_data)
-
                 for db in get_db():
                     # Проверка клиента в базе
                     client = get_client_by_pa(db, int(data.personal_account))
@@ -573,6 +601,7 @@ class WindowAddClient(tkinter.Toplevel):
                         "Ошибка!",
                         "Нет тарифов, сначала необходимо добавить тариф!"
                     )
+                    self.focus()
                 break
             return list_tariffs
         except Exception as e:
@@ -924,7 +953,6 @@ class WindowEditAndViewClient(tkinter.Toplevel):
                 "Ошибка!",
                 f"Возникла ошибка!\nПодробности: \n{e}"
             )
-
 
 
 # --- Запуск приложения ---

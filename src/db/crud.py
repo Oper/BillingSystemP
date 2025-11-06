@@ -21,7 +21,6 @@ def create_client(db: Session, client_data: ClientCreate) -> Client | None:
     # 1. Преобразуем объект Pydantic в словарь
     # .model_dump() преобразует Pydantic-объект в обычный словарь Python
     db_client_data = client_data.model_dump()
-
     # 2. Создаем экземпляр модели SQLAlchemy
     db_client = Client(**db_client_data)
     try:
@@ -269,6 +268,35 @@ def apply_monthly_charge(db: Session, client_id: int) -> Optional[Client]:
 
     return client
 
+
+def apply_daily_charge(db: Session, client_id: int, count_days: int) -> Optional[Client]:
+    """
+    Рассчитывает ежедневную оплату для клиента и вычитает ее из баланса.
+    :param db: Активная синхронная сессия базы данных.
+    :param client_id: ID клиента.
+    :param count_days: Количество дней для расчета оплаты.
+    :return: Обновленный объект клиента или None.
+    """
+    client = get_client_by_id(db, client_id)
+    if client is None or client.is_active == 0:
+        return None  # Неактивный или несуществующий клиент не списывается
+
+    # 1. Ищем тариф, чтобы узнать цену
+    tariff = get_tariff_by_name(db, client.tariff)
+    if tariff is None:
+        print(f"⚠️ Тариф '{client.tariff}' для клиента {client.full_name} не найден. Списание невозможно.")
+        return client  # Возвращаем клиента без изменений
+
+    charge_amount = tariff.monthly_price // 30 * count_days
+
+    # 2. Обновляем баланс
+    client.balance -= charge_amount
+
+    # 3. Фиксируем изменения
+    db.commit()
+    # await db.refresh(client)
+
+    return client
 
 def set_client_activity(db: Session, client_id: int, is_active: bool) -> Optional[Client]:
     """

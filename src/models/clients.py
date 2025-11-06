@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 
 class ClientBase(BaseModel):
@@ -48,5 +48,8 @@ class ClientInDB(ClientBase):
     connection_date: datetime
     is_active: int
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(
+        from_attributes=True
+    )
+    # class Config:
+    #     from_attributes = True
