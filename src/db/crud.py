@@ -4,7 +4,7 @@ from sqlalchemy import select, or_, func, delete
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
-from src.db.models import Client, Tariff, Payment
+from src.db.models import Client, Tariff, Payment, Accrual
 from src.models.clients import ClientCreate, ClientUpdate
 from src.models.payments import PaymentCreate
 from src.models.tariffs import TariffCreate
@@ -379,5 +379,17 @@ def get_payments_by_client(db: Session, client_id: int) -> List[Payment]:
     :return: Список объектов платежей (моделей SQLAlchemy).
     """
     stmt = select(Payment).where(Payment.client_id == client_id)
+    result = db.execute(stmt)
+    return result.scalars().all()
+
+def get_accruals_by_client(db: Session, client_id: int) -> List[Accrual]:
+    """
+        Синхронно получает список начислений Клиента.
+
+        :param client_id: ID Клиента.
+        :param db: Активная синхронная сессия базы данных.
+        :return: Список объектов платежей (моделей SQLAlchemy).
+        """
+    stmt = select(Accrual).where(Accrual.client_id == client_id)
     result = db.execute(stmt)
     return result.scalars().all()

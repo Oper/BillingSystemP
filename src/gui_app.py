@@ -7,7 +7,7 @@ from pydantic import ValidationError
 
 from src.db.crud import delete_tariff, delete_client, get_client_by_pa, update_client, create_payment, create_client, \
     search_clients, get_clients, get_tariffs, create_tariff, get_tariff_by_name, set_client_activity, \
-    get_payments_by_client, apply_monthly_charge, apply_daily_charge
+    get_payments_by_client, apply_monthly_charge, apply_daily_charge, get_accruals_by_client
 from src.db.database import get_db, init_db
 from src.models.clients import ClientUpdate, ClientForPayments, ClientCard, ClientCreate, ClientBase
 from src.models.payments import PaymentCreate
@@ -500,7 +500,6 @@ class WindowAddClient(tkinter.Toplevel):
 
         except Exception as e:
             messagebox.showerror("Ошибка добавления", f"Не удалось добавить клиента:\n{e}")
-            print(e)
 
     def _update_client(self, client_id: int, client: ClientUpdate):
         """Редактирование Клиента в дополнительном окне.
@@ -555,7 +554,7 @@ class WindowAddClient(tkinter.Toplevel):
             "tariff": self.tariff_entry.get(),
             "balance": self.balance_entry.get(),
         }
-        print(window_data)
+
         if window_data.values():
             try:
                 data = ClientCreate(**window_data)
@@ -755,7 +754,7 @@ class WindowEditAndViewClient(tkinter.Toplevel):
         super().__init__(parent)
 
         self.title("Карточка абонента")
-        self.geometry("650x700")
+        self.geometry("650x800")
         self.resizable(False, False)
 
         main_frame = ttk.Frame(self, padding=20)
@@ -823,6 +822,33 @@ class WindowEditAndViewClient(tkinter.Toplevel):
         self.passport_how.grid(row=current_row, column=1, sticky='we', padx=5, pady=5)
         current_row += 1
 
+        accruals_frame = ttk.LabelFrame(main_frame, text="Список начислений")
+        accruals_frame.grid(row=current_row, column=0, columnspan=2, sticky='we', padx=5, pady=10)
+
+        accruals_frame.columnconfigure(0, weight=1)
+        accruals_frame.rowconfigure(0, weight=1)
+
+        cols = ('date', 'amount', 'per_month')
+        self.tree_accruals = ttk.Treeview(accruals_frame, columns=cols, show='headings', height=5)
+
+        # Настраиваем заголовки
+        self.tree_accruals.heading('date', text='Дата')
+        self.tree_accruals.heading('amount', text='Сумма')
+        self.tree_accruals.heading('per_month', text='За месяц')
+
+        # Настраиваем ширину колонок
+        self.tree_accruals.column('date', width=100, anchor='center')
+        self.tree_accruals.column('amount', width=100, anchor='center')
+        self.tree_accruals.column('per_month', width=150, anchor='center')
+
+        scrollbar = ttk.Scrollbar(accruals_frame, orient=tkinter.VERTICAL, command=self.tree_accruals.yview)
+        self.tree_accruals.configure(yscrollcommand=scrollbar.set)
+
+        self.tree_accruals.grid(row=0, column=0, sticky='nsew')
+        scrollbar.grid(row=0, column=1, sticky='ns')
+
+        current_row += 1
+
         payments_frame = ttk.LabelFrame(main_frame, text="Список платежей")
         payments_frame.grid(row=current_row, column=0, columnspan=2, sticky='we', padx=5, pady=10)
 
@@ -830,7 +856,7 @@ class WindowEditAndViewClient(tkinter.Toplevel):
         payments_frame.rowconfigure(0, weight=1)
 
         cols = ('date', 'amount', 'type')
-        self.tree_payments = ttk.Treeview(payments_frame, columns=cols, show='headings', height=8)
+        self.tree_payments = ttk.Treeview(payments_frame, columns=cols, show='headings', height=5)
 
         # Настраиваем заголовки
         self.tree_payments.heading('date', text='Дата')
@@ -893,6 +919,17 @@ class WindowEditAndViewClient(tkinter.Toplevel):
                     payment.payment_date,
                     payment.amount,
                     payment.status.title(),
+                )))
+
+        for item in self.tree_payments.get_children():
+            self.tree_payments.delete(item)
+
+        for db in get_db():
+            for accruad in get_accruals_by_client(db, client_id=client.client_id):
+                (self.tree_payments.insert("", "end", values=(
+                    accruad.created_at,
+                    accruad.amount,
+                    accruad.accrual_date.month,
                 )))
 
     def on_ok(self):
