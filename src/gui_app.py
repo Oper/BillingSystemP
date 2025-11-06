@@ -841,7 +841,7 @@ class WindowEditAndViewClient(tkinter.Toplevel):
         self.tree_accruals.column('amount', width=100, anchor='center')
         self.tree_accruals.column('per_month', width=150, anchor='center')
 
-        scrollbar = ttk.Scrollbar(accruals_frame, orient=tkinter.VERTICAL, command=self.tree_accruals.yview)
+        scrollbar = ttk.Scrollbar(accruals_frame, orient="vertical", command=self.tree_accruals.yview)
         self.tree_accruals.configure(yscrollcommand=scrollbar.set)
 
         self.tree_accruals.grid(row=0, column=0, sticky='nsew')
@@ -868,7 +868,7 @@ class WindowEditAndViewClient(tkinter.Toplevel):
         self.tree_payments.column('amount', width=100, anchor='center')
         self.tree_payments.column('type', width=150, anchor='center')
 
-        scrollbar = ttk.Scrollbar(payments_frame, orient=tkinter.VERTICAL, command=self.tree_payments.yview)
+        scrollbar = ttk.Scrollbar(payments_frame, orient="vertical", command=self.tree_payments.yview)
         self.tree_payments.configure(yscrollcommand=scrollbar.set)
 
         self.tree_payments.grid(row=0, column=0, sticky='nsew')
