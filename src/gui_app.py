@@ -757,6 +757,7 @@ class WindowEditAndViewClient(tkinter.Toplevel):
 
         self.title("Карточка абонента")
         self.geometry("650x700")
+        self.resizable(False, False)
 
         main_frame = ttk.Frame(self, padding=20)
         main_frame.pack(fill='both', expand=True)
@@ -781,7 +782,7 @@ class WindowEditAndViewClient(tkinter.Toplevel):
         current_row += 1
 
         ttk.Label(main_frame, text="Телефон:").grid(row=current_row, column=0, sticky='nw', padx=5, pady=5)
-        self.phone_entry = tkinter.Entry(main_frame, width=40, relief='solid', borderwidth=1)
+        self.phone_entry = ttk.Entry(main_frame, width=40)
         self.phone_entry.grid(row=current_row, column=1, sticky='we', padx=5, pady=5)
         current_row += 1
 
@@ -802,21 +803,24 @@ class WindowEditAndViewClient(tkinter.Toplevel):
         self.connect_date_entry.grid(row=current_row, column=1, sticky='w', padx=5, pady=5)  # sticky='w'
         current_row += 1
 
-        ttk.Label(main_frame, text="Паспортные данные:").grid(row=current_row, column=0, sticky='nw', padx=5, pady=5)
+        passport_frame = ttk.LabelFrame(main_frame, text="Паспортные данные")
+        passport_frame.grid(row=current_row, column=0, columnspan=2, sticky='we', padx=5, pady=10)
+        passport_frame.columnconfigure(0, weight=1)
+        passport_frame.rowconfigure(0, weight=1)
         current_row += 1
 
-        ttk.Label(main_frame, text="Серия и номер:").grid(row=current_row, column=0)
-        self.passport_ser_num = ttk.Entry(main_frame)
+        ttk.Label(passport_frame, text="Серия и номер:").grid(row=current_row, column=0, sticky='w', padx=5, pady=5)
+        self.passport_ser_num = ttk.Entry(passport_frame, width=60)
         self.passport_ser_num.grid(row=current_row, column=1, sticky='we', padx=5, pady=5)
         current_row += 1
 
-        ttk.Label(main_frame, text="Дата выдачи:").grid(row=current_row, column=0)
-        self.passport_data = ttk.Entry(main_frame)
+        ttk.Label(passport_frame, text="Дата выдачи:").grid(row=current_row, column=0, sticky='w', padx=5, pady=5)
+        self.passport_data = ttk.Entry(passport_frame)
         self.passport_data.grid(row=current_row, column=1, sticky='we', padx=5, pady=5)
         current_row += 1
 
-        ttk.Label(main_frame, text="Кем выдан:").grid(row=current_row, column=0)
-        self.passport_how = ttk.Entry(main_frame)
+        ttk.Label(passport_frame, text="Кем выдан:").grid(row=current_row, column=0, sticky='w', padx=5, pady=5)
+        self.passport_how = ttk.Entry(passport_frame)
         self.passport_how.grid(row=current_row, column=1, sticky='we', padx=5, pady=5)
         current_row += 1
 
@@ -827,7 +831,7 @@ class WindowEditAndViewClient(tkinter.Toplevel):
         payments_frame.rowconfigure(0, weight=1)
 
         cols = ('date', 'amount', 'type')
-        self.tree_payments = ttk.Treeview(payments_frame, columns=cols, show='headings', height=5)
+        self.tree_payments = ttk.Treeview(payments_frame, columns=cols, show='headings', height=8)
 
         # Настраиваем заголовки
         self.tree_payments.heading('date', text='Дата')
