@@ -54,7 +54,6 @@ class BillingSysemApp(tkinter.Tk):
 
         self.date_todey = date.today()
 
-        print(self.date_todey.month, self.date_todey.day)
         if 1 < self.date_todey.day < 10:
             self._accrual_of_amounts()
 
