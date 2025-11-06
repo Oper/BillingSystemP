@@ -35,10 +35,10 @@ class Client(BaseModel):
     is_active: Mapped[bool] = mapped_column(default=True)
     passport: Mapped[str] = mapped_column(JSON, default=lambda: {"ser_num": "Нет", "date": "Нет", "how": "Нет"})
     payments: Mapped[List["Payment"]] = relationship("Payment", back_populates="client", cascade="all, delete-orphan")
+    accruals: Mapped[List["Accrual"]] = relationship("Accrual", back_populates="client", cascade="all, delete-orphan")
 
     def __repr__(self):
-        return f'Client (id={self.id}, name={self.full_name}, balance={self.balance}, is_active={self.is_active})'
-
+        return f'Абонент (id={self.id}, ФИО={self.full_name}, Баланс={self.balance}, Статус={self.is_active})'
 
 
 class Service(BaseModel):
@@ -48,8 +48,7 @@ class Service(BaseModel):
     service_price: Mapped[float] = mapped_column(default=0.0)
 
     def __repr__(self):
-        return f'Service (name={self.service_name}, price={self.service_price})'
-
+        return f'Услуга (Наименование={self.service_name}, цена={self.service_price})'
 
 
 class Tariff(BaseModel):
@@ -60,8 +59,7 @@ class Tariff(BaseModel):
     is_active: Mapped[bool] = mapped_column(default=True)
 
     def __repr__(self):
-        return f"Tariff(id={self.id}, name='{self.name}', price={self.monthly_price})"
-
+        return f"Тариф (id={self.id}, Наименование='{self.name}', цена={self.monthly_price})"
 
 
 class Payment(BaseModel):
@@ -76,5 +74,16 @@ class Payment(BaseModel):
     client: Mapped["Client"] = relationship("Client", back_populates="payments")
 
     def __repr__(self):
-        return f'Payment (amount={self.amount}, ЛС Клиента={self.client_id})'
+        return f'Платеж (Сумма={self.amount}, ЛС Клиента={self.client_id})'
 
+
+class Accrual(BaseModel):
+    """Модель начислений"""
+    __tablename__ = 'accruals'
+    amount: Mapped[float] = mapped_column(default=0.0)
+    accrual_date: Mapped[datetime] = mapped_column(server_default=func.now())
+    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id"))
+    client: Mapped["Client"] = relationship("Client", back_populates="accruals")
+
+    def __repr__(self):
+        return f"Начислено (Сумма={self.amount}, за месяц={self.accrual_date.month})"
