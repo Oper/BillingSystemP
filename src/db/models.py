@@ -81,7 +81,7 @@ class Accrual(BaseModel):
     """Модель начислений"""
     __tablename__ = 'accruals'
     amount: Mapped[float] = mapped_column(default=0.0)
-    accrual_date: Mapped[datetime] = mapped_column(server_default=func.now())
+    accrual_date: Mapped[datetime] = mapped_column(nullable=True)
     client_id: Mapped[int] = mapped_column(ForeignKey("clients.id"))
     client: Mapped["Client"] = relationship("Client", back_populates="accruals")
 
