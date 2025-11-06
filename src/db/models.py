@@ -33,7 +33,7 @@ class Client(BaseModel):
     accrual_date: Mapped[datetime] = mapped_column(nullable=True)
     balance: Mapped[float] = mapped_column(default=0.0)
     is_active: Mapped[bool] = mapped_column(default=True)
-    passport: Mapped[str] = mapped_column(JSON, default=lambda: {})
+    passport: Mapped[str] = mapped_column(JSON, default=lambda: {"ser_num": "Нет", "date": "Нет", "how": "Нет"})
     payments: Mapped[List["Payment"]] = relationship("Payment", back_populates="client", cascade="all, delete-orphan")
 
     def __repr__(self):

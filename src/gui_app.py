@@ -878,9 +878,9 @@ class WindowEditAndViewClient(tkinter.Toplevel):
         self.tariff_entry.current(self._get_tariffs().index(client.tariff))
         self.combo_status.current(0 if client.is_active else 1)
         self.connect_date_entry.insert(0, str(client.connection_date.date()))
-        self.passport_ser_num.insert(0, passport_client.get("ser_num"))
-        self.passport_data.insert(0, passport_client.get("date"))
-        self.passport_how.insert(0, passport_client.get("how"))
+        self.passport_ser_num.insert(0, passport_client.get("ser_num", "Нет"))
+        self.passport_data.insert(0, passport_client.get("date", "Нет"))
+        self.passport_how.insert(0, passport_client.get("how", "Нет"))
         for item in self.tree_payments.get_children():
             self.tree_payments.delete(item)
 
