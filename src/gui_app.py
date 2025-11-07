@@ -923,7 +923,7 @@ class WindowEditAndViewClient(tkinter.Toplevel):
         for db in get_db():
             for accrual in get_accruals_by_client(db, client_id=client.client_id):
                 (self.tree_accruals.insert("", "end", values=(
-                    accrual.created_at.strftime("%d/%m/%Y"),
+                    accrual.created_at.strftime("%d.%m.%Y"),
                     accrual.amount,
                     accrual.accrual_date.month,
                 )))
@@ -936,7 +936,7 @@ class WindowEditAndViewClient(tkinter.Toplevel):
         for db in get_db():
             for payment in get_payments_by_client(db, client_id=client.client_id):
                 (self.tree_payments.insert("", "end", values=(
-                    payment.payment_date.strftime("%d/%m/%Y"),
+                    payment.payment_date.strftime("%d.%m.%Y"),
                     payment.amount,
                     payment.status.title(),
                 )))
