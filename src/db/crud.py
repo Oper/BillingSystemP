@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import List, Optional
 
 from sqlalchemy import select, or_, func, delete
@@ -8,6 +9,7 @@ from src.db.models import Client, Tariff, Payment, Accrual
 from src.models.clients import ClientCreate, ClientUpdate
 from src.models.payments import PaymentCreate
 from src.models.tariffs import TariffCreate
+from src.models.accruals import AccrualCreate
 
 
 def create_client(db: Session, client_data: ClientCreate) -> Client | None:
@@ -298,6 +300,7 @@ def apply_daily_charge(db: Session, client_id: int, count_days: int) -> Optional
 
     return client
 
+
 def set_client_activity(db: Session, client_id: int, is_active: bool) -> Optional[Client]:
     """
     Приостанавливает (is_active=False) или возобновляет (is_active=True) обслуживание клиента.
@@ -370,6 +373,7 @@ def get_debtors_report(db: Session) -> List[Client]:
     result = db.execute(stmt)
     return result.scalars().all()
 
+
 def get_payments_by_client(db: Session, client_id: int) -> List[Payment]:
     """
     Синхронно получает список платежей с Клиента.
@@ -382,6 +386,7 @@ def get_payments_by_client(db: Session, client_id: int) -> List[Payment]:
     result = db.execute(stmt)
     return result.scalars().all()
 
+
 def get_accruals_by_client(db: Session, client_id: int) -> List[Accrual]:
     """
         Синхронно получает список начислений Клиента.
@@ -393,3 +398,88 @@ def get_accruals_by_client(db: Session, client_id: int) -> List[Accrual]:
     stmt = select(Accrual).where(Accrual.client_id == client_id)
     result = db.execute(stmt)
     return result.scalars().all()
+
+
+def create_accrual(db: Session, accrual: AccrualCreate) -> Accrual | None:
+    """
+        Синхронно добавляет новые начисление в базу данных.
+
+        :param db: Активная синхронная сессия базы данных.
+        :param accrual: Объект Pydantic с данными начисления.
+        :return: Созданный объект платежа (модель SQLAlchemy).
+        """
+
+    db_accrual_data = accrual.model_dump()
+
+    db_accrual = Accrual(**db_accrual_data)
+    try:
+        db.add(db_accrual)
+        db.commit()
+        return db_accrual
+    except SQLAlchemyError as e:
+        db.rollback()
+
+
+def create_accrual_daily(db: Session, client_id: int, count_days: int, accrual_date: datetime) -> Optional[Accrual] | None:
+    """
+        Синхронно добавляет новые начисление в базу данных.
+
+        :param db: Активная синхронная сессия базы данных.
+        :param client_id: ID клиента.
+        :param count_days: Количество дней для расчета оплаты.
+        :param accrual_date: За какой месяц рассчитано начисление
+        :return: Созданный объект начисления (модель SQLAlchemy).
+        """
+
+    client = get_client_by_id(db, client_id)
+    if client is None or client.is_active == 0:
+        return None  # Неактивный или несуществующий клиент не списывается
+
+    # 1. Ищем тариф, чтобы узнать цену
+    tariff = get_tariff_by_name(db, client.tariff)
+    if tariff is None:
+        print(f"⚠️ Тариф '{client.tariff}' для клиента {client.full_name} не найден. Списание невозможно.")
+        return client  # Возвращаем клиента без изменений
+
+    charge_amount = tariff.monthly_price // 30 * count_days
+
+    accrual = AccrualCreate(
+        amount=charge_amount,
+        client_id=client.id,
+        accrual_date=accrual_date
+    )
+    accrual_db = create_accrual(db, accrual)
+
+    return accrual_db
+
+
+def create_accrual_monthly(db: Session, client_id: int, accrual_date: datetime) -> Optional[Accrual] | None:
+    """
+        Синхронно добавляет новые начисление в базу данных.
+
+        :param db: Активная синхронная сессия базы данных.
+        :param client_id: ID клиента.
+        :param accrual_date: За какой месяц рассчитано начисление
+        :return: Созданный объект начисления (модель SQLAlchemy).
+        """
+
+    client = get_client_by_id(db, client_id)
+    if client is None or client.is_active == 0:
+        return None  # Неактивный или несуществующий клиент не списывается
+
+    # 1. Ищем тариф, чтобы узнать цену
+    tariff = get_tariff_by_name(db, client.tariff)
+    if tariff is None:
+        print(f"⚠️ Тариф '{client.tariff}' для клиента {client.full_name} не найден. Списание невозможно.")
+        return client  # Возвращаем клиента без изменений
+
+    charge_amount = tariff.monthly_price
+
+    accrual = AccrualCreate(
+        amount=charge_amount,
+        client_id=client.id,
+        accrual_date=accrual_date
+    )
+    accrual_db = create_accrual(db, accrual)
+
+    return accrual_db
