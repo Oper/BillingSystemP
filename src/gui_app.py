@@ -5,9 +5,11 @@ from tkinter.constants import END
 
 from pydantic import ValidationError
 
+from models.accruals import AccrualCreate
 from src.db.crud import delete_tariff, delete_client, get_client_by_pa, update_client, create_payment, create_client, \
     search_clients, get_clients, get_tariffs, create_tariff, get_tariff_by_name, set_client_activity, \
-    get_payments_by_client, apply_monthly_charge, apply_daily_charge, get_accruals_by_client
+    get_payments_by_client, apply_monthly_charge, apply_daily_charge, get_accruals_by_client, create_accrual_daily, \
+    create_accrual_monthly
 from src.db.database import get_db, init_db
 from src.models.clients import ClientUpdate, ClientForPayments, ClientCard, ClientCreate, ClientBase
 from src.models.payments import PaymentCreate
@@ -425,10 +427,14 @@ class BillingSysemApp(tkinter.Tk):
                         result_apply_daily_charge = apply_daily_charge(db, client.id, count_days)
                         if result_apply_daily_charge:
                             client.accrual_date = self.date_todey
-                    else:
+                            create_accrual_daily(db, client.id, count_days, client.accrual_date)
+
+                    elif self.date_todey.month != client.accrual_date.month:
                         result_apply_monthly_charge = apply_monthly_charge(db, client.id)
                         if result_apply_monthly_charge:
                             client.accrual_date = self.date_todey
+                            create_accrual_monthly(db, client.id, client.accrual_date)
+                break
         except Exception as e:
             messagebox.showerror(
                 "Ошибка!",
@@ -910,27 +916,32 @@ class WindowEditAndViewClient(tkinter.Toplevel):
         self.passport_ser_num.insert(0, passport_client.get("ser_num", "Нет"))
         self.passport_data.insert(0, passport_client.get("date", "Нет"))
         self.passport_how.insert(0, passport_client.get("how", "Нет"))
+
+        for item in self.tree_accruals.get_children():
+            self.tree_accruals.delete(item)
+
+        for db in get_db():
+            for accrual in get_accruals_by_client(db, client_id=client.client_id):
+                (self.tree_accruals.insert("", "end", values=(
+                    accrual.created_at.strftime("%d/%m/%Y"),
+                    accrual.amount,
+                    accrual.accrual_date.month,
+                )))
+            break
+
+
         for item in self.tree_payments.get_children():
             self.tree_payments.delete(item)
 
         for db in get_db():
             for payment in get_payments_by_client(db, client_id=client.client_id):
                 (self.tree_payments.insert("", "end", values=(
-                    payment.payment_date,
+                    payment.payment_date.strftime("%d/%m/%Y"),
                     payment.amount,
                     payment.status.title(),
                 )))
+            break
 
-        for item in self.tree_payments.get_children():
-            self.tree_payments.delete(item)
-
-        for db in get_db():
-            for accruad in get_accruals_by_client(db, client_id=client.client_id):
-                (self.tree_payments.insert("", "end", values=(
-                    accruad.created_at,
-                    accruad.amount,
-                    accruad.accrual_date.month,
-                )))
 
     def on_ok(self):
         """Функция сохранения данных из карточки Абонента."""
