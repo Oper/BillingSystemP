@@ -84,9 +84,10 @@ class BillingSysemApp(tkinter.Tk):
             self.client_tree.heading(col, text=col)
             self.client_tree.column(col, anchor="w", width=80)
 
-        self.client_tree.column("Лицевой счет", width=30)
-        self.client_tree.column("Баланс", width=60)
-        self.client_tree.column("Активен", width=60)
+        self.client_tree.column("Лицевой счет", width=30, anchor='center')
+        self.client_tree.column("Баланс", width=60, anchor='center')
+        self.client_tree.column("Активен", width=60, anchor='center')
+        self.client_tree.column("Тариф", anchor='center')
 
         ttk.Button(frame, text="Внести оплату", command=self._add_payment).pack(side="left", padx=5)
         ttk.Button(frame, text="Приостановить", command=self._set_client_inactivity).pack(side="left", padx=5)
@@ -113,7 +114,7 @@ class BillingSysemApp(tkinter.Tk):
         # Настройка заголовков столбцов
         for col in self.tariffs_tree['columns']:
             self.tariffs_tree.heading(col, text=col)
-            self.tariffs_tree.column(col, anchor="w", width=80)
+            self.tariffs_tree.column(col, anchor="center", width=80)
 
         ttk.Button(frame, text="Добавить тариф", command=self._add_tariff).pack(side="left", padx=5)
         ttk.Separator(frame, orient="vertical", style="black.TSeparator").pack(side="left", padx=5, pady=5)
