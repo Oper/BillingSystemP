@@ -5,7 +5,6 @@ from tkinter.constants import END
 
 from pydantic import ValidationError
 
-from models.accruals import AccrualCreate
 from src.db.crud import delete_tariff, delete_client, get_client_by_pa, update_client, create_payment, create_client, \
     search_clients, get_clients, get_tariffs, create_tariff, get_tariff_by_name, set_client_activity, \
     get_payments_by_client, apply_monthly_charge, apply_daily_charge, get_accruals_by_client, create_accrual_daily, \
@@ -53,6 +52,7 @@ class BillingSysemApp(tkinter.Tk):
         # Наполнение вкладок
         self._setup_abonents_tab(abonents)
         self._setup_tariffs_tab(tariffs)
+        self._setup_reports_tab(reports)
 
         self.date_todey = date.today()
 
@@ -121,6 +121,45 @@ class BillingSysemApp(tkinter.Tk):
         ttk.Button(frame, text="Удалить тариф", command=self._delete_tariff).pack(side="left", padx=5)
 
         self._load_tariffs()
+
+    def _setup_reports_tab(self, frame):
+        """Создает элементы для вкладки 'Отчеты'"""
+        frame.columnconfigure(0, weight=1)
+        current_row = 0
+
+        abonents_report_frame = ttk.LabelFrame(frame, text="Отчеты по абонентам")
+        abonents_report_frame.grid(row=current_row, column=0, sticky='we', padx=5, pady=10)
+        abonents_report_frame.columnconfigure(0, weight=1)
+        abonents_report_frame.rowconfigure(0, weight=1)
+        current_row += 1
+
+        buttons_frame_abonents = ttk.Frame(abonents_report_frame)
+        buttons_frame_abonents.grid(row=current_row, column=0, sticky='ew',
+                                    pady=15)
+        ttk.Button(buttons_frame_abonents, text="Список должников").pack(side="left", padx=5)
+        ttk.Button(buttons_frame_abonents, text="Список абонентов по домам").pack(side="left", padx=5)
+        ttk.Separator(buttons_frame_abonents, orient="vertical", style="black.TSeparator").pack(side="left", padx=5,
+                                                                                                pady=5)
+        ttk.Combobox(buttons_frame_abonents, state="readonly",
+                     values=["Количество подключений", "Количество отключений", "Количество приостановленных"],
+                     width=25).pack(side="left", padx=5, pady=5)
+        ttk.Button(buttons_frame_abonents, text="Месячный отчет").pack(side="left", padx=5)
+        current_row += 1
+
+        other_reports_frame = ttk.LabelFrame(frame, text="Аналитические отчеты")
+        other_reports_frame.grid(row=current_row, column=0, sticky='ew', padx=5, pady=10)
+        other_reports_frame.columnconfigure(0, weight=1)
+        other_reports_frame.rowconfigure(0, weight=1)
+        current_row += 1
+
+        buttons_frame_other_reports = ttk.Frame(other_reports_frame)
+        buttons_frame_other_reports.grid(row=current_row, column=0, sticky='ew', pady=15)
+        ttk.Label(buttons_frame_other_reports, text="Доходы:").pack(side="left", padx=5)
+        ttk.Combobox(buttons_frame_other_reports, state="readonly", values=["по дням", "за месяц", "за год"],
+                     width=25).pack(side="left", padx=5, pady=5)
+        ttk.Separator(buttons_frame_other_reports, orient="vertical", style="black.TSeparator").pack(side="left",
+                                                                                                     padx=5, pady=5)
+        ttk.Button(buttons_frame_other_reports, text="Сформировать").pack(side="left", padx=5)
 
     def _search_clients(self):
         """Выполняет поиск клиентов."""
@@ -930,7 +969,6 @@ class WindowEditAndViewClient(tkinter.Toplevel):
                 )))
             break
 
-
         for item in self.tree_payments.get_children():
             self.tree_payments.delete(item)
 
@@ -942,7 +980,6 @@ class WindowEditAndViewClient(tkinter.Toplevel):
                     payment.status.title(),
                 )))
             break
-
 
     def on_ok(self):
         """Функция сохранения данных из карточки Абонента."""
