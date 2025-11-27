@@ -1060,19 +1060,30 @@ class WindowReportClient(tkinter.Toplevel):
         self.report_type: int = report_type
 
         report_frame = ttk.Frame(self, padding=5, borderwidth=5, relief="ridge")
-        report_frame.pack(fill="both", expand=True)
 
         cols = ["personal_account", "full_name", "address", "balance", "status"]
         self.tree_frame = ttk.Treeview(report_frame, columns=cols, show='headings', height=5)
+
         self.tree_frame.heading("personal_account", text="Лицевой счет")
         self.tree_frame.heading("full_name", text="ФИО")
         self.tree_frame.heading("address", text="Адрес")
         self.tree_frame.heading("balance", text="Баланс")
         self.tree_frame.heading("status", text="Статус")
 
-        self.tree_frame.column("personal_account", width=100, anchor="center")
+        for col in self.tree_frame['columns']:
+            self.tree_frame.column(col, width=10, anchor="center")
+
+        # self.tree_frame.column("personal_account", width=10, anchor="center")
+        # self.tree_frame.column("full_name", width=10, anchor="center")
+        # self.tree_frame.column("address", width=10, anchor="center")
+        # self.tree_frame.column("balance", width=10, anchor="center")
+        # self.tree_frame.column("status", width=10, anchor="center")
+
+        report_frame.pack(fill="both", expand=True)
+        self.tree_frame.pack(fill="both", expand=True)
 
         self._load_clients(self.report_type)
+
         self.transient(parent)
 
     def _load_clients(self, report_type: int):
