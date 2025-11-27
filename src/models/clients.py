@@ -3,6 +3,8 @@ from typing import Optional
 
 from pydantic import BaseModel, Field, ConfigDict
 
+from src.db.models import StatusClientEnum
+
 
 class ClientBase(BaseModel):
     """Базовая модель для данных клиента."""
@@ -28,6 +30,7 @@ class ClientCard(ClientBase):
     is_active: int
     connection_date: datetime
     passport: Optional[dict] = None
+    status: Optional[StatusClientEnum] = None
 
 
 class ClientUpdate(ClientBase):
@@ -40,6 +43,8 @@ class ClientUpdate(ClientBase):
     balance: Optional[float] = None
     is_active: Optional[int] = None
     passport: Optional[dict] = None
+    status: Optional[StatusClientEnum] = None
+    status_date: Optional[datetime] = None
 
 
 class ClientInDB(ClientBase):

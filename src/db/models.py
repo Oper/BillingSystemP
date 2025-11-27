@@ -19,6 +19,11 @@ class CurrencyEnum(str, enum.Enum):
     RUB = "Рубль"
     USD = "Доллар"
 
+class StatusClientEnum(str, enum.Enum):
+    CONNECTING = "Подключен"
+    DISCONNECTING = "Отключен"
+    PAUSE = "Приостановлен"
+
 
 class Client(BaseModel):
     """Модель клиента.
@@ -33,6 +38,8 @@ class Client(BaseModel):
     accrual_date: Mapped[datetime] = mapped_column(nullable=True)
     balance: Mapped[float] = mapped_column(default=0.0)
     is_active: Mapped[bool] = mapped_column(default=True)
+    status: Mapped[StatusClientEnum] = mapped_column(default=StatusClientEnum.CONNECTING)
+    status_date: Mapped[datetime] = mapped_column(nullable=True)
     passport: Mapped[str] = mapped_column(JSON, default=lambda: {"ser_num": "Нет", "date": "Нет", "how": "Нет"})
     payments: Mapped[List["Payment"]] = relationship("Payment", back_populates="client", cascade="all, delete-orphan")
     accruals: Mapped[List["Accrual"]] = relationship("Accrual", back_populates="client", cascade="all, delete-orphan")

@@ -5,10 +5,11 @@ from tkinter.constants import END
 
 from pydantic import ValidationError
 
+from src.db.models import StatusClientEnum
 from src.db.crud import delete_tariff, delete_client, get_client_by_pa, update_client, create_payment, create_client, \
     search_clients, get_clients, get_tariffs, create_tariff, get_tariff_by_name, set_client_activity, \
     get_payments_by_client, apply_monthly_charge, apply_daily_charge, get_accruals_by_client, create_accrual_daily, \
-    create_accrual_monthly, get_debtors_report
+    create_accrual_monthly, get_debtors_report, set_client_status
 from src.db.database import get_db, init_db
 from src.models.clients import ClientUpdate, ClientForPayments, ClientCard, ClientCreate, ClientBase
 from src.models.payments import PaymentCreate
@@ -74,7 +75,7 @@ class BillingSysemApp(tkinter.Tk):
         # Виджет Treeview для отображения данных
         self.client_tree = ttk.Treeview(
             frame,
-            columns=("Лицевой счет", "ФИО", "Адрес", "Тариф", "Баланс", "Активен"),
+            columns=("Лицевой счет", "ФИО", "Адрес", "Тариф", "Баланс", "Статус"),
             show='headings'  # Скрываем первый столбец с индексами
         )
         self.client_tree.pack(fill="both", expand=True, padx=5, pady=5)
@@ -86,12 +87,14 @@ class BillingSysemApp(tkinter.Tk):
 
         self.client_tree.column("Лицевой счет", width=30, anchor='center')
         self.client_tree.column("Баланс", width=60, anchor='center')
-        self.client_tree.column("Активен", width=60, anchor='center')
+        self.client_tree.column("Статус", width=60, anchor='center')
         self.client_tree.column("Тариф", anchor='center')
 
         ttk.Button(frame, text="Внести оплату", command=self._add_payment).pack(side="left", padx=5)
-        ttk.Button(frame, text="Приостановить", command=self._set_client_inactivity).pack(side="left", padx=5)
-        ttk.Button(frame, text="Возобновить", command=self._set_client_activity).pack(side="left", padx=5)
+        self.status_box = ttk.Combobox(frame, width=30, state="readonly",
+                                       values=["Подключен", "Отключен", "Приостановлен"])
+        self.status_box.pack(side="left", padx=5)
+        ttk.Button(frame, text="Сменить статус абонента", command=self._set_client_satus).pack(side="left", padx=5)
         ttk.Separator(frame, orient="vertical", style="black.TSeparator").pack(side="left", padx=5, pady=5)
         ttk.Button(frame, text="Добавить клиента", command=self._add_client).pack(side="left", padx=5)
         ttk.Button(frame, text="Редактировать клиента", command=self._edit_client).pack(side="left", padx=5)
@@ -136,14 +139,23 @@ class BillingSysemApp(tkinter.Tk):
         buttons_frame_abonents = ttk.Frame(abonents_report_frame)
         buttons_frame_abonents.grid(row=current_row, column=0, sticky='ew',
                                     pady=15)
-        ttk.Button(buttons_frame_abonents, text="Список должников", command=self._get_debtors_clients).pack(side="left", padx=5)
+        ttk.Button(buttons_frame_abonents, text="Список должников", command=self._get_debtors_clients).pack(side="left",
+                                                                                                            padx=5)
         ttk.Button(buttons_frame_abonents, text="Список абонентов по домам").pack(side="left", padx=5)
         ttk.Separator(buttons_frame_abonents, orient="vertical", style="black.TSeparator").pack(side="left", padx=5,
                                                                                                 pady=5)
-        ttk.Combobox(buttons_frame_abonents, state="readonly",
-                     values=["Количество подключений", "Количество отключений", "Количество приостановленных"],
-                     width=25).pack(side="left", padx=5, pady=5)
-        ttk.Button(buttons_frame_abonents, text="Месячный отчет").pack(side="left", padx=5)
+        self.reports_analysis_box = ttk.Combobox(buttons_frame_abonents, state="readonly",
+                                                 values=["Количество подключений", "Количество отключений",
+                                                         "Количество приостановленных"],
+                                                 width=25)
+        self.reports_analysis_box.pack(side="left", padx=5, pady=5)
+        self.reports_analysis_box.current(0)
+
+        ttk.Button(buttons_frame_abonents, text="Месячный отчет", command=self._get_result_report_analysis).pack(
+            side="left", padx=5)
+        ttk.Label(buttons_frame_abonents, text="Отчет: ").pack(side="left", padx=5, pady=5)
+        self.result_report_analysis_lebel = (ttk.Label(buttons_frame_abonents))
+        self.result_report_analysis_lebel.pack(side="left", padx=5, pady=5)
         current_row += 1
 
         other_reports_frame = ttk.LabelFrame(frame, text="Аналитические отчеты")
@@ -208,7 +220,7 @@ class BillingSysemApp(tkinter.Tk):
                 client.address,
                 client.tariff,
                 f"{client.balance:.2f}",  # Форматируем баланс
-                is_active_status
+                client.status.value,
             ))
 
     def _display_tariffs(self, tariffs):
@@ -379,8 +391,9 @@ class BillingSysemApp(tkinter.Tk):
         """Создание нового окна для добавления тарифа."""
         add_window_tariff = WindowAddTariff(self)
 
-    def _set_client_inactivity(self):
+    def _set_client_satus(self):
         """Обрабатывает нажатие кнопки 'Приостановить'."""
+        status = self.status_box.get()
         select_client = self.client_tree.item(self.client_tree.focus()).get('values')
         if not select_client:
             messagebox.showerror(
@@ -393,34 +406,14 @@ class BillingSysemApp(tkinter.Tk):
                     client = get_client_by_pa(db, select_client[0])
                     result = messagebox.askyesno(
                         "Подтверждение действия",
-                        "Вы уверены, что хотите приостановить выбранного Абонента?"
+                        f"Вы уверены, что хотите изменить статус {client.status} выбранного Абонента на {status}?"
                     )
                     if result:
-                        set_client_activity(db, int(client.id), False)
-                    break
-            except Exception as e:
-                messagebox.showerror("Ошибка операции!", f"Не удалось изменить статус абонента! \nПодробности:\n{e}")
-
-            self._search_clients()
-
-    def _set_client_activity(self):
-        """Обрабатывает нажатие кнопки 'Возобновить'."""
-        select_client = self.client_tree.item(self.client_tree.focus()).get('values')
-        if not select_client:
-            messagebox.showerror(
-                "Внимание!",
-                "Необходимо выбрать абонента!"
-            )
-        else:
-            try:
-                for db in get_db():
-                    client = get_client_by_pa(db, select_client[0])
-                    result = messagebox.askyesno(
-                        "Подтверждение действия",
-                        "Вы уверены, что хотите возобновить выбранного Абонента?"
-                    )
-                    if result:
-                        set_client_activity(db, int(client.id), True)
+                        set_client_status(db, int(client.id), status)
+                        if status == StatusClientEnum.PAUSE or status == StatusClientEnum.DISCONNECTING:
+                            set_client_activity(db, int(client.id), False)
+                        elif status == StatusClientEnum.CONNECTING:
+                            set_client_activity(db, int(client.id), True)
                     break
             except Exception as e:
                 messagebox.showerror("Ошибка операции!", f"Не удалось изменить статус абонента! \nПодробности:\n{e}")
@@ -448,7 +441,8 @@ class BillingSysemApp(tkinter.Tk):
                     client_id=client.id,
                     is_active=client.is_active,
                     connection_date=client.connection_date,
-                    passport=client.passport
+                    passport=client.passport,
+                    status=client.status,
                 )
                 break
         except Exception as e:
@@ -487,6 +481,37 @@ class BillingSysemApp(tkinter.Tk):
     def _get_debtors_clients(self):
         """Создание нового окна для отчета."""
         window_report = WindowReportClient(self, "Список должников", 0)
+
+    def _get_result_report_analysis(self):
+        """Метод получения месячного отчета по движению абонентов за месяц
+        Вариант отчета: 'Количество подключений', 'Количество отключений', 'Количество приостановленных'
+        """
+        current_month = date.today().month
+        type_report = self.reports_analysis_box.get()
+
+        clients = None
+        for db in get_db():
+            clients = get_clients(db)
+            break
+
+        count_result = 0
+
+        if type_report == "Количество подключений":
+            for client in clients:
+                if client.connection_date.month == current_month:
+                    count_result += 1
+            self.result_report_analysis_lebel.config(text=count_result)
+        elif type_report == "Количество отключений":
+            for client in clients:
+                if client.status_date and client.status_date.month == current_month and client.status == StatusClientEnum.DISCONNECTING:
+                    count_result += 1
+            self.result_report_analysis_lebel.config(text=count_result)
+        elif type_report == "Количество приостановленных":
+            for client in clients:
+                if client.status_date and client.status_date.month == current_month and client.status == StatusClientEnum.PAUSE:
+                    count_result += 1
+            self.result_report_analysis_lebel.config(text=count_result)
+
 
 class WindowAddClient(tkinter.Toplevel):
     """Класс для вызова окна добавления клиента."""
@@ -806,7 +831,7 @@ class WindowEditAndViewClient(tkinter.Toplevel):
         super().__init__(parent)
 
         self.title("Карточка абонента")
-        self.geometry("650x800")
+        self.geometry("650x750")
         self.resizable(False, False)
 
         main_frame = ttk.Frame(self, padding=20)
@@ -827,7 +852,7 @@ class WindowEditAndViewClient(tkinter.Toplevel):
         current_row += 1
 
         ttk.Label(main_frame, text="Адрес:").grid(row=current_row, column=0, sticky='nw', padx=5, pady=5)
-        self.text_address = tkinter.Text(main_frame, height=3, width=40, relief='solid', borderwidth=1)
+        self.text_address = tkinter.Entry(main_frame, width=40)
         self.text_address.grid(row=current_row, column=1, sticky='we', padx=5, pady=5)
         current_row += 1
 
@@ -843,7 +868,10 @@ class WindowEditAndViewClient(tkinter.Toplevel):
         current_row += 1
 
         ttk.Label(main_frame, text="Статус:").grid(row=current_row, column=0, sticky='w', padx=5, pady=5)
-        self.combo_status = ttk.Combobox(main_frame, state="readonly", values=["Активный", "Неактивный"])
+        self.status_list = [StatusClientEnum.CONNECTING.value, StatusClientEnum.PAUSE.value,
+                            StatusClientEnum.DISCONNECTING.value]
+        self.combo_status = ttk.Combobox(main_frame, state="readonly",
+                                         values=self.status_list)
         self.combo_status.grid(row=current_row, column=1, sticky='w', padx=5,
                                pady=5)
         current_row += 1
@@ -954,10 +982,11 @@ class WindowEditAndViewClient(tkinter.Toplevel):
 
         self.personal_account_entry.insert(0, int(client.personal_account))
         self.full_name_entry.insert(0, client.full_name)
-        self.text_address.insert(1.0, client.address)
+        self.text_address.insert(0, client.address)
         self.phone_entry.insert(0, client.phone_number)
         self.tariff_entry.current(self._get_tariffs().index(client.tariff))
-        self.combo_status.current(0 if client.is_active else 1)
+
+        self.combo_status.current(self.status_list.index(client.status))
         self.connect_date_entry.insert(0, str(client.connection_date.date()))
         self.passport_ser_num.insert(0, passport_client.get("ser_num", "Нет"))
         self.passport_data.insert(0, passport_client.get("date", "Нет"))
@@ -999,10 +1028,12 @@ class WindowEditAndViewClient(tkinter.Toplevel):
         }
         current_client = ClientUpdate(
             full_name=self.full_name_entry.get(),
+            address=self.text_address.get(),
             phone_number=self.phone_entry.get(),
             tariff=self.tariff_entry.get(),
-            is_active=(True if self.combo_status.get() == "Активный" else False),
             passport=passport,
+            status=self.combo_status.get(),
+
         )
         try:
             for db in get_db():
@@ -1052,6 +1083,7 @@ class WindowEditAndViewClient(tkinter.Toplevel):
 
 class WindowReportClient(tkinter.Toplevel):
     """Класс для вызова окна отчетов по Абонентам."""
+
     def __init__(self, parent, title: str = "Отчет", report_type: int = 0):
         super().__init__(parent)
         self.title(title)
@@ -1072,12 +1104,6 @@ class WindowReportClient(tkinter.Toplevel):
 
         for col in self.tree_frame['columns']:
             self.tree_frame.column(col, width=10, anchor="center")
-
-        # self.tree_frame.column("personal_account", width=10, anchor="center")
-        # self.tree_frame.column("full_name", width=10, anchor="center")
-        # self.tree_frame.column("address", width=10, anchor="center")
-        # self.tree_frame.column("balance", width=10, anchor="center")
-        # self.tree_frame.column("status", width=10, anchor="center")
 
         report_frame.pack(fill="both", expand=True)
         self.tree_frame.pack(fill="both", expand=True)
@@ -1112,16 +1138,15 @@ class WindowReportClient(tkinter.Toplevel):
             self.tree_frame.delete(item)
 
         for client in clients:
-            # Преобразуем объект SQLAlchemy в удобный кортеж
-            is_active_status = "Активный" if client.is_active == 1 else "Приостановленный"
 
             self.tree_frame.insert("", "end", values=(
                 client.personal_account,
                 client.full_name,
                 client.address,
                 f"{client.balance:.2f}",  # Форматируем баланс
-                is_active_status
+                client.status.value,
             ))
+
 
 # --- Запуск приложения ---
 if __name__ == "__main__":

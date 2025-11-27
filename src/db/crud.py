@@ -5,7 +5,7 @@ from sqlalchemy import select, or_, func, delete
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
-from src.db.models import Client, Tariff, Payment, Accrual
+from src.db.models import Client, Tariff, Payment, Accrual, StatusClientEnum
 from src.models.clients import ClientCreate, ClientUpdate
 from src.models.payments import PaymentCreate
 from src.models.tariffs import TariffCreate
@@ -325,6 +325,30 @@ def set_client_activity(db: Session, client_id: int, is_active: bool) -> Optiona
     return client
 
 
+def set_client_status(db: Session, client_id: int, status: StatusClientEnum) -> Optional[Client]:
+    """
+    Устанавливает статус абонента.
+    :param db: Активная синхронная сессия базы данных.
+    :param client_id: ID клиента.
+    :param status: Новый статус активности (Подключен/Отключен/Приостановлен).
+    :return: Обновленный объект клиента или None.
+    """
+    client = get_client_by_id(db, client_id)
+    if client is None:
+        return None
+
+    # Обновляем поле is_active
+    client.status = status
+    client.status_date = datetime.now()
+    db.commit()
+
+    # Фиксируем изменения
+    db.commit()
+    # await db.refresh(client)
+
+    return client
+
+
 def create_payment(db: Session, payment: PaymentCreate) -> Payment | None:
     """
         Синхронно добавляет новый платеж в базу данных.
@@ -420,7 +444,8 @@ def create_accrual(db: Session, accrual: AccrualCreate) -> Accrual | None:
         db.rollback()
 
 
-def create_accrual_daily(db: Session, client_id: int, count_days: int, accrual_date: datetime) -> Optional[Accrual] | None:
+def create_accrual_daily(db: Session, client_id: int, count_days: int, accrual_date: datetime) -> Optional[
+                                                                                                      Accrual] | None:
     """
         Синхронно добавляет новые начисление в базу данных.
 
