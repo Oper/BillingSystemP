@@ -8,7 +8,7 @@ from pydantic import ValidationError
 from src.db.crud import delete_tariff, delete_client, get_client_by_pa, update_client, create_payment, create_client, \
     search_clients, get_clients, get_tariffs, create_tariff, get_tariff_by_name, set_client_activity, \
     get_payments_by_client, apply_monthly_charge, apply_daily_charge, get_accruals_by_client, create_accrual_daily, \
-    create_accrual_monthly
+    create_accrual_monthly, get_debtors_report
 from src.db.database import get_db, init_db
 from src.models.clients import ClientUpdate, ClientForPayments, ClientCard, ClientCreate, ClientBase
 from src.models.payments import PaymentCreate
@@ -136,7 +136,7 @@ class BillingSysemApp(tkinter.Tk):
         buttons_frame_abonents = ttk.Frame(abonents_report_frame)
         buttons_frame_abonents.grid(row=current_row, column=0, sticky='ew',
                                     pady=15)
-        ttk.Button(buttons_frame_abonents, text="Список должников").pack(side="left", padx=5)
+        ttk.Button(buttons_frame_abonents, text="Список должников", command=self._get_debtors_clients).pack(side="left", padx=5)
         ttk.Button(buttons_frame_abonents, text="Список абонентов по домам").pack(side="left", padx=5)
         ttk.Separator(buttons_frame_abonents, orient="vertical", style="black.TSeparator").pack(side="left", padx=5,
                                                                                                 pady=5)
@@ -452,7 +452,10 @@ class BillingSysemApp(tkinter.Tk):
                 )
                 break
         except Exception as e:
-            print(e)
+            messagebox.showerror(
+                "Ошибка!",
+                f"Произошла ошибка!\nПодробнее:\n{e}"
+            )
         new_window.set_data_client(current_client)
         self._load_clients()
 
@@ -481,6 +484,9 @@ class BillingSysemApp(tkinter.Tk):
                 f"Ошибка начисления оплаты!\nПодробнее:\n{e}"
             )
 
+    def _get_debtors_clients(self):
+        """Создание нового окна для отчета."""
+        window_report = WindowReportClient(self, "Список должников", 0)
 
 class WindowAddClient(tkinter.Toplevel):
     """Класс для вызова окна добавления клиента."""
@@ -1043,6 +1049,68 @@ class WindowEditAndViewClient(tkinter.Toplevel):
                 f"Возникла ошибка!\nПодробности: \n{e}"
             )
 
+
+class WindowReportClient(tkinter.Toplevel):
+    """Класс для вызова окна отчетов по Абонентам."""
+    def __init__(self, parent, title: str = "Отчет", report_type: int = 0):
+        super().__init__(parent)
+        self.title(title)
+        self.geometry("600x650")
+        self.resizable(False, False)
+        self.report_type: int = report_type
+
+        report_frame = ttk.Frame(self, padding=5, borderwidth=5, relief="ridge")
+        report_frame.pack(fill="both", expand=True)
+
+        cols = ["personal_account", "full_name", "address", "balance", "status"]
+        self.tree_frame = ttk.Treeview(report_frame, columns=cols, show='headings', height=5)
+        self.tree_frame.heading("personal_account", text="Лицевой счет")
+        self.tree_frame.heading("full_name", text="ФИО")
+        self.tree_frame.heading("address", text="Адрес")
+        self.tree_frame.heading("balance", text="Баланс")
+        self.tree_frame.heading("status", text="Статус")
+
+        self.tree_frame.column("personal_account", width=100, anchor="center")
+
+        self._load_clients(self.report_type)
+        self.transient(parent)
+
+    def _load_clients(self, report_type: int):
+        """Загружает и отображает список всех клиентов в зависимости от переданного параметра.
+        :param report_type: Тип отчета для загрузки клиентов. 0 - Список должников; 1 - Список абонентов по домам.
+        """
+        # 1. Очистка Treeview
+        for item in self.tree_frame.get_children():
+            self.tree_frame.delete(item)
+
+        clients = None
+
+        # 2. Получение данных
+        if report_type == 0:
+            for db in get_db():
+                clients = get_debtors_report(db)
+                break
+
+        # 3. Отображение
+        self._display_clients(clients)
+
+    def _display_clients(self, clients):
+        """Отображает список объектов клиентов в Treeview."""
+        # Очистка Treeview
+        for item in self.tree_frame.get_children():
+            self.tree_frame.delete(item)
+
+        for client in clients:
+            # Преобразуем объект SQLAlchemy в удобный кортеж
+            is_active_status = "Активный" if client.is_active == 1 else "Приостановленный"
+
+            self.tree_frame.insert("", "end", values=(
+                client.personal_account,
+                client.full_name,
+                client.address,
+                f"{client.balance:.2f}",  # Форматируем баланс
+                is_active_status
+            ))
 
 # --- Запуск приложения ---
 if __name__ == "__main__":
