@@ -90,15 +90,26 @@ class BillingSysemApp(tkinter.Tk):
         self.client_tree.column("Статус", width=60, anchor='center')
         self.client_tree.column("Тариф", anchor='center')
 
-        ttk.Button(frame, text="Внести оплату", command=self._add_payment).pack(side="left", padx=5)
-        self.status_box = ttk.Combobox(frame, width=30, state="readonly",
+        self.group_operations_frame = ttk.LabelFrame(frame, text="Основные операции с абонентами")
+        self.group_operations_frame.pack(fill="x", padx=5, pady=10)
+
+        ttk.Button(self.group_operations_frame, text="Внести оплату", command=self._add_payment).pack(side="left",
+                                                                                                      padx=5, pady=5)
+        self.status_box = ttk.Combobox(self.group_operations_frame, width=20, state="readonly",
                                        values=["Подключен", "Отключен", "Приостановлен"])
-        self.status_box.pack(side="left", padx=5)
-        ttk.Button(frame, text="Сменить статус абонента", command=self._set_client_satus).pack(side="left", padx=5)
-        ttk.Separator(frame, orient="vertical", style="black.TSeparator").pack(side="left", padx=5, pady=5)
-        ttk.Button(frame, text="Добавить клиента", command=self._add_client).pack(side="left", padx=5)
-        ttk.Button(frame, text="Редактировать клиента", command=self._edit_client).pack(side="left", padx=5)
-        ttk.Button(frame, text="Удалить клиента", command=self._delete_client).pack(side="left", padx=5)
+        self.status_box.pack(side="left", padx=5, pady=5)
+        ttk.Button(self.group_operations_frame, text="Сменить статус", command=self._set_client_satus).pack(side="left",
+                                                                                                            padx=5,
+                                                                                                            pady=5)
+        ttk.Separator(self.group_operations_frame, orient="vertical", style="black.TSeparator").pack(side="left",
+                                                                                                     padx=5, pady=5)
+        ttk.Button(self.group_operations_frame, text="Добавить клиента", command=self._add_client).pack(side="left",
+                                                                                                        padx=5, pady=5)
+        ttk.Button(self.group_operations_frame, text="Редактировать клиента", command=self._edit_client).pack(
+            side="left", padx=5, pady=5)
+        ttk.Button(self.group_operations_frame, text="Удалить клиента", command=self._delete_client).pack(side="left",
+                                                                                                          padx=5,
+                                                                                                          pady=5)
         # Загрузка данных при старте
         self._load_clients()
         self.client_tree.bind("<Double-Button-1>", self._open_edit_window)
@@ -167,8 +178,11 @@ class BillingSysemApp(tkinter.Tk):
         buttons_frame_other_reports = ttk.Frame(other_reports_frame)
         buttons_frame_other_reports.grid(row=current_row, column=0, sticky='ew', pady=15)
         ttk.Label(buttons_frame_other_reports, text="Доходы:").pack(side="left", padx=5)
-        ttk.Combobox(buttons_frame_other_reports, state="readonly", values=["по дням", "за месяц", "за год"],
-                     width=25).pack(side="left", padx=5, pady=5)
+        self.type_report_analysis_box = (ttk.Combobox(buttons_frame_other_reports, state="readonly",
+                                                      values=["по дням", "за месяц", "за год"],
+                                                      width=25))
+        self.type_report_analysis_box.pack(side="left", padx=5, pady=5)
+        self.type_report_analysis_box.current(0)
         ttk.Separator(buttons_frame_other_reports, orient="vertical", style="black.TSeparator").pack(side="left",
                                                                                                      padx=5, pady=5)
         ttk.Button(buttons_frame_other_reports, text="Сформировать").pack(side="left", padx=5)
@@ -406,7 +420,7 @@ class BillingSysemApp(tkinter.Tk):
                     client = get_client_by_pa(db, select_client[0])
                     result = messagebox.askyesno(
                         "Подтверждение действия",
-                        f"Вы уверены, что хотите изменить статус {client.status} выбранного Абонента на {status}?"
+                        f"Вы уверены, что хотите изменить статус Абонента - {client.full_name} c '{client.status.value}' на '{status}'?"
                     )
                     if result:
                         set_client_status(db, int(client.id), status)
@@ -1140,7 +1154,6 @@ class WindowReportClient(tkinter.Toplevel):
             self.tree_frame.delete(item)
 
         for client in clients:
-
             self.tree_frame.insert("", "end", values=(
                 client.personal_account,
                 client.full_name,
