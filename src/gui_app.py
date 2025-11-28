@@ -567,10 +567,11 @@ class WindowAddClient(tkinter.Toplevel):
             # 2. Вызов синхронной CRUD-функции
             for db in get_db():
                 new_client = create_client(db, data)
-                messagebox.showinfo(
-                    "Успех",
-                    f"Клиент {new_client.full_name} (ID: {new_client.id}) успешно добавлен!"
-                )
+                if new_client:
+                    messagebox.showinfo(
+                        "Успех",
+                        f"Клиент {new_client.full_name} (ID: {new_client.id}) успешно добавлен!"
+                    )
                 break
 
             self.destroy()
@@ -589,10 +590,11 @@ class WindowAddClient(tkinter.Toplevel):
             # 2. Вызов синхронной CRUD-функции
             for db in get_db():
                 current_client = update_client(db, client_id, client)
-                messagebox.showinfo(
-                    "Успех",
-                    f"Клиент {current_client.full_name} (ID: {current_client.id}) успешно изменен!"
-                )
+                if current_client:
+                    messagebox.showinfo(
+                        "Успех",
+                        f"Клиент {current_client.full_name} (ID: {current_client.id}) успешно изменен!"
+                    )
                 break
 
             self.destroy()
