@@ -1,7 +1,7 @@
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, Any, Sequence
 
-from sqlalchemy import select, or_, func, delete
+from sqlalchemy import select, or_, func, delete, Row, RowMapping
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
@@ -33,6 +33,7 @@ def create_client(db: Session, client_data: ClientCreate) -> Client | None:
         # await db.refresh(db_client) # Обновляем объект, чтобы получить ID
     except SQLAlchemyError as e:
         db.rollback()
+        return None
 
 
 def delete_client(db: Session, client_id: int) -> bool:
@@ -151,7 +152,7 @@ def update_client(db: Session, client_id: int, client_data: ClientUpdate) -> Opt
     return db_client
 
 
-def get_clients(db: Session, skip: int = 0, limit: int = 100) -> List[Client]:
+def get_clients(db: Session, skip: int = 0, limit: int = 100) -> Sequence[Client]:
     """
     Синхронно получает список клиентов с возможностью пагинации.
 
@@ -171,7 +172,7 @@ def get_clients(db: Session, skip: int = 0, limit: int = 100) -> List[Client]:
     return result.scalars().all()
 
 
-def search_clients(db: Session, search_term: str) -> List[Client]:
+def search_clients(db: Session, search_term: str) -> Sequence[Client]:
     """
     Асинхронно ищет клиентов по частичному совпадению ФИО или Адреса (без учета регистра).
 
@@ -210,6 +211,7 @@ def create_tariff(db: Session, tariff_data: TariffCreate) -> Tariff | None:
         return db_tariff
     except SQLAlchemyError as e:
         db.rollback()
+        return None
 
 
 def get_tariff_by_name(db: Session, name: str) -> Optional[Tariff]:
@@ -235,7 +237,7 @@ def get_tariff_by_id(db: Session, tariff_id: int) -> Tariff | None:
     return result.scalars().first()
 
 
-def get_tariffs(db: Session, skip: int = 0, limit: int = 100) -> List[Tariff]:
+def get_tariffs(db: Session, skip: int = 0, limit: int = 100) -> Sequence[Tariff]:
     """Получение списка Тарифов"""
     stmt = select(Tariff).offset(skip).limit(limit)
     result = db.execute(stmt)
@@ -313,10 +315,8 @@ def set_client_activity(db: Session, client_id: int, is_active: bool) -> Optiona
     if client is None:
         return None
 
-    new_status = 1 if is_active else 0
-
     # Обновляем поле is_active
-    client.is_active = new_status
+    client.is_active = is_active
 
     # Фиксируем изменения
     db.commit()
@@ -367,9 +367,10 @@ def create_payment(db: Session, payment: PaymentCreate) -> Payment | None:
         return db_payment
     except SQLAlchemyError as e:
         db.rollback()
+        return None
 
 
-def get_payments(db: Session, skip: int = 0, limit: int = 100) -> List[Payment]:
+def get_payments(db: Session, skip: int = 0, limit: int = 100) -> Sequence[Payment]:
     """
     Синхронно получает список платежей с возможностью пагинации.
 
@@ -389,7 +390,7 @@ def get_payments(db: Session, skip: int = 0, limit: int = 100) -> List[Payment]:
     return result.scalars().all()
 
 
-def get_debtors_report(db: Session) -> List[Client]:
+def get_debtors_report(db: Session) -> Sequence[Client]:
     """Формирует отчет: получает список всех клиентов, чей баланс меньше 0 (должники).
     :param db: Активная синхронная сессия базы данных.
     """
@@ -398,7 +399,7 @@ def get_debtors_report(db: Session) -> List[Client]:
     return result.scalars().all()
 
 
-def get_payments_by_client(db: Session, client_id: int) -> List[Payment]:
+def get_payments_by_client(db: Session, client_id: int) -> Sequence[Payment]:
     """
     Синхронно получает список платежей с Клиента.
 
@@ -411,7 +412,7 @@ def get_payments_by_client(db: Session, client_id: int) -> List[Payment]:
     return result.scalars().all()
 
 
-def get_accruals_by_client(db: Session, client_id: int) -> List[Accrual]:
+def get_accruals_by_client(db: Session, client_id: int) -> Sequence[Accrual]:
     """
         Синхронно получает список начислений Клиента.
 
@@ -442,6 +443,7 @@ def create_accrual(db: Session, accrual: AccrualCreate) -> Accrual | None:
         return db_accrual
     except SQLAlchemyError as e:
         db.rollback()
+        return None
 
 
 def create_accrual_daily(db: Session, client_id: int, count_days: int, accrual_date: datetime) -> Optional[
@@ -463,8 +465,7 @@ def create_accrual_daily(db: Session, client_id: int, count_days: int, accrual_d
     # 1. Ищем тариф, чтобы узнать цену
     tariff = get_tariff_by_name(db, client.tariff)
     if tariff is None:
-        print(f"⚠️ Тариф '{client.tariff}' для клиента {client.full_name} не найден. Списание невозможно.")
-        return client  # Возвращаем клиента без изменений
+        return None
 
     charge_amount = tariff.monthly_price // 30 * count_days
 
@@ -495,8 +496,7 @@ def create_accrual_monthly(db: Session, client_id: int, accrual_date: datetime) 
     # 1. Ищем тариф, чтобы узнать цену
     tariff = get_tariff_by_name(db, client.tariff)
     if tariff is None:
-        print(f"⚠️ Тариф '{client.tariff}' для клиента {client.full_name} не найден. Списание невозможно.")
-        return client  # Возвращаем клиента без изменений
+        return None
 
     charge_amount = tariff.monthly_price
 
