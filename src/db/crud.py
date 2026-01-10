@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import List, Optional, Any, Sequence
 
-from sqlalchemy import select, or_, func, delete, Row, RowMapping
+from sqlalchemy import select, or_, func, delete, Row, RowMapping, desc
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
@@ -411,6 +411,17 @@ def get_payments_by_client(db: Session, client_id: int) -> Sequence[Payment]:
     result = db.execute(stmt)
     return result.scalars().all()
 
+def get_last_payment_by_client(db: Session, client_id: int) -> Optional[Payment]:
+    """
+        Синхронно получает последний платеж Клиента.
+
+        :param client_id: ID Клиента.
+        :param db: Активная синхронная сессия базы данных.
+        :return: Объект платежа (моделей SQLAlchemy).
+        """
+    stmt = select(Payment).where(Payment.client_id == client_id).order_by(desc(Payment.id)).limit(1)
+    result = db.execute(stmt)
+    return result.scalar_one_or_none()
 
 def get_accruals_by_client(db: Session, client_id: int) -> Sequence[Accrual]:
     """

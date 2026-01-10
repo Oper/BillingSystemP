@@ -1,4 +1,6 @@
 import tkinter
+from pathlib import Path
+
 from tkcalendar import DateEntry
 from datetime import date
 from tkinter import ttk, messagebox
@@ -10,7 +12,7 @@ from src.db.models import StatusClientEnum
 from src.db.crud import delete_tariff, delete_client, get_client_by_pa, update_client, create_payment, create_client, \
     search_clients, get_clients, get_tariffs, create_tariff, get_tariff_by_name, set_client_activity, \
     get_payments_by_client, apply_monthly_charge, apply_daily_charge, get_accruals_by_client, create_accrual_daily, \
-    create_accrual_monthly, get_debtors_report, set_client_status
+    create_accrual_monthly, get_debtors_report, set_client_status, get_last_payment_by_client
 from src.db.database import get_db, init_db
 from src.models.clients import ClientUpdate, ClientForPayments, ClientCard, ClientCreate, ClientBase
 from src.models.payments import PaymentCreate
@@ -170,23 +172,37 @@ class BillingSysemApp(tkinter.Tk):
         self.result_report_analysis_lebel.pack(side="left", padx=5, pady=5)
         current_row += 1
 
-        other_reports_frame = ttk.LabelFrame(frame, text="Аналитические отчеты")
-        other_reports_frame.grid(row=current_row, column=0, sticky='ew', padx=5, pady=10)
-        other_reports_frame.columnconfigure(0, weight=1)
-        other_reports_frame.rowconfigure(0, weight=1)
+        analytical_reports_frame = ttk.LabelFrame(frame, text="Аналитические отчеты")
+        analytical_reports_frame.grid(row=current_row, column=0, sticky='ew', padx=5, pady=10)
+        analytical_reports_frame.columnconfigure(0, weight=1)
+        analytical_reports_frame.rowconfigure(0, weight=1)
         current_row += 1
 
-        buttons_frame_other_reports = ttk.Frame(other_reports_frame)
-        buttons_frame_other_reports.grid(row=current_row, column=0, sticky='ew', pady=15)
-        ttk.Label(buttons_frame_other_reports, text="Доходы:").pack(side="left", padx=5)
-        self.type_report_analysis_box = (ttk.Combobox(buttons_frame_other_reports, state="readonly",
+        buttons_frame_analytical_reports = ttk.Frame(analytical_reports_frame)
+        buttons_frame_analytical_reports.grid(row=current_row, column=0, sticky='ew', pady=10)
+        ttk.Label(buttons_frame_analytical_reports, text="Доходы:").pack(side="left", padx=5)
+        self.type_report_analysis_box = (ttk.Combobox(buttons_frame_analytical_reports, state="readonly",
                                                       values=["по дням", "за месяц", "за год"],
                                                       width=25))
         self.type_report_analysis_box.pack(side="left", padx=5, pady=5)
         self.type_report_analysis_box.current(0)
-        ttk.Separator(buttons_frame_other_reports, orient="vertical", style="black.TSeparator").pack(side="left",
-                                                                                                     padx=5, pady=5)
-        ttk.Button(buttons_frame_other_reports, text="Сформировать").pack(side="left", padx=5)
+        ttk.Separator(buttons_frame_analytical_reports, orient="vertical", style="black.TSeparator").pack(side="left",
+                                                                                                          padx=5,
+                                                                                                          pady=5)
+        ttk.Button(buttons_frame_analytical_reports, text="Сформировать").pack(side="left", padx=5)
+        current_row += 1
+
+        downloading_reports_frame = ttk.LabelFrame(frame, text="Выгрузка отчетов")
+        downloading_reports_frame.grid(row=current_row, column=0, sticky='ew', padx=5, pady=10)
+        downloading_reports_frame.columnconfigure(0, weight=1)
+        downloading_reports_frame.rowconfigure(0, weight=1)
+        current_row += 1
+
+        buttons_frame_downloading_reports = ttk.Frame(downloading_reports_frame)
+        buttons_frame_downloading_reports.grid(row=current_row, column=0, sticky='ew', padx=5, pady=10)
+        ttk.Button(buttons_frame_downloading_reports, text="Выгрузить реестр для банка",
+                   command=self._get_report_for_bank).pack(side="left", padx=5)
+        current_row += 1
 
     def _search_clients(self):
         """Выполняет поиск клиентов."""
@@ -526,6 +542,39 @@ class BillingSysemApp(tkinter.Tk):
                 if client.status_date and client.status_date.month == current_month and client.status == StatusClientEnum.PAUSE:
                     count_result += 1
             self.result_report_analysis_lebel.config(text=count_result)
+
+    def _get_report_for_bank(self):
+        """
+        Метод создает в папке 'reports' текстовый файл с именем '1117005066_40702810728180100104_дата_формирования.txt'
+        Файл содержит данные о внесении оплаты в формате - 'номер_ЛС;Фамилия ИО;;ТВ;;сумма_платежа'. Каждый клиент на новой строчке
+        :return:
+        """
+        clients = None
+        current_month = date.today().month
+        dir_path = Path("reports")
+        file_path = dir_path / f"1117005066_40702810728180100104_{date.today()}.txt"
+        dir_path.mkdir(parents=True, exist_ok=True)
+
+        for db in get_db():
+            clients = get_clients(db)
+            break
+
+        if clients:
+            with file_path.open(mode="w", encoding="utf-8") as file:
+                for client in clients:
+                    personal_account = client.personal_account
+                    full_name = client.full_name  # TODO
+                    amount = self._get_last_payment_client(client.id, current_month)
+                    record = f"{personal_account};{full_name};;ТВ;;{amount:.2f}\n"
+                    file.write(record)
+
+    def _get_last_payment_client(self, client_id: int, current_month: int) -> float:
+        result = 0
+        for db in get_db():
+            last_payment_client = get_last_payment_by_client(db, client_id)
+            if last_payment_client and last_payment_client.payment_date.month == current_month:
+                result = result + last_payment_client.amount
+        return result
 
 
 class WindowAddClient(tkinter.Toplevel):
