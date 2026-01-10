@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import List, Optional, Any, Sequence
 
-from sqlalchemy import select, or_, func, delete, Row, RowMapping, desc
+from sqlalchemy import select, or_, func, delete, Row, RowMapping, desc, insert
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
@@ -20,20 +20,30 @@ def create_client(db: Session, client_data: ClientCreate) -> Client | None:
     :param client_data: Объект Pydantic с данными нового клиента.
     :return: Созданный объект клиента (модель SQLAlchemy).
     """
-    # 1. Преобразуем объект Pydantic в словарь
-    # .model_dump() преобразует Pydantic-объект в обычный словарь Python
     db_client_data = client_data.model_dump()
-    # 2. Создаем экземпляр модели SQLAlchemy
     db_client = Client(**db_client_data)
     try:
-        # 3. Добавляем объект в сессию и фиксируем изменения в базе
         db.add(db_client)
         db.commit()
         return db_client
-        # await db.refresh(db_client) # Обновляем объект, чтобы получить ID
     except SQLAlchemyError as e:
         db.rollback()
         return None
+
+
+def bulk_create_clients(db: Session, clients_list: list[ClientCreate]):
+    if not clients_list:
+        return
+
+    data = [c.model_dump() for c in clients_list]
+
+    try:
+        db.execute(insert(Client), data)
+        db.commit()
+    except SQLAlchemyError as e:
+        db.rollback()
+        print(f"Критическая ошибка базы данных: {e}")
+        raise e
 
 
 def delete_client(db: Session, client_id: int) -> bool:
@@ -519,3 +529,12 @@ def create_accrual_monthly(db: Session, client_id: int, accrual_date: datetime) 
     accrual_db = create_accrual(db, accrual)
 
     return accrual_db
+
+def clear_db_clients(db: Session):
+    """
+    Удаление базы клиентов.
+
+    :param db: Активная синхронная сессия базы данных.
+    """
+    db.execute(delete(Client))
+    db.commit()

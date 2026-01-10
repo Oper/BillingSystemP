@@ -3,7 +3,7 @@ from pathlib import Path
 
 from tkcalendar import DateEntry
 from datetime import date
-from tkinter import ttk, messagebox
+from tkinter import ttk, messagebox, filedialog
 from tkinter.constants import END
 
 from pydantic import ValidationError
@@ -12,7 +12,8 @@ from src.db.models import StatusClientEnum
 from src.db.crud import delete_tariff, delete_client, get_client_by_pa, update_client, create_payment, create_client, \
     search_clients, get_clients, get_tariffs, create_tariff, get_tariff_by_name, set_client_activity, \
     get_payments_by_client, apply_monthly_charge, apply_daily_charge, get_accruals_by_client, create_accrual_daily, \
-    create_accrual_monthly, get_debtors_report, set_client_status, get_last_payment_by_client
+    create_accrual_monthly, get_debtors_report, set_client_status, get_last_payment_by_client, clear_db_clients, \
+    bulk_create_clients
 from src.db.database import get_db, init_db
 from src.models.clients import ClientUpdate, ClientForPayments, ClientCard, ClientCreate, ClientBase
 from src.models.payments import PaymentCreate
@@ -57,6 +58,7 @@ class BillingSysemApp(tkinter.Tk):
         self._setup_abonents_tab(abonents)
         self._setup_tariffs_tab(tariffs)
         self._setup_reports_tab(reports)
+        self._setup_settings_tab(settings)
 
         self.date_todey = date.today()
 
@@ -563,7 +565,12 @@ class BillingSysemApp(tkinter.Tk):
             with file_path.open(mode="w", encoding="utf-8") as file:
                 for client in clients:
                     personal_account = client.personal_account
-                    full_name = client.full_name  # TODO
+                    client_full_name = client.full_name.split()
+                    full_name = None
+                    if len(client_full_name) == 3:
+                        full_name = f"{client_full_name[0].capitalize()} {client_full_name[1][0].upper()}{client_full_name[2][0].upper()}"
+                    else:
+                        full_name = client_full_name[0].capitalize()
                     amount = self._get_last_payment_client(client.id, current_month)
                     record = f"{personal_account};{full_name};;ТВ;;{amount:.2f}\n"
                     file.write(record)
@@ -575,6 +582,78 @@ class BillingSysemApp(tkinter.Tk):
             if last_payment_client and last_payment_client.payment_date.month == current_month:
                 result = result + last_payment_client.amount
         return result
+
+    def _setup_settings_tab(self, frame):
+        """Создает элементы для вкладки 'Настройки'"""
+        frame.columnconfigure(0, weight=1)
+        current_row = 0
+
+        db_frame = ttk.LabelFrame(frame, text="Действия с базой")
+        db_frame.grid(row=current_row, column=0, sticky='we', padx=5, pady=10)
+        db_frame.columnconfigure(0, weight=1)
+        db_frame.rowconfigure(0, weight=1)
+        current_row += 1
+
+        buttons_frame = ttk.Frame(db_frame)
+        buttons_frame.grid(row=current_row, column=0, sticky='ew', pady=15)
+        ttk.Button(buttons_frame, text="Загрузить базу", command=self._select_file).pack(side="left", padx=5)
+        ttk.Button(buttons_frame, text="Выгрузить базу", command=self._save_db_to_file).pack(side="left", padx=5)
+
+    def _select_file(self):
+        """
+        Метод для загрузки файлов в программу.
+        :return:
+        """
+        ask_result = messagebox.askyesno(
+            title="Подтверждение",
+            message="Вы действительно хотите удалить существующую базу клиентов и загрузить новую?"
+        )
+        if ask_result:
+            for db in get_db():
+                clear_db_clients(db)
+                break
+
+            clients = []
+            list_lines_of_file = None
+            filename = filedialog.askopenfile()
+            if filename:
+                with filename:
+                    list_lines_of_file = filename.readlines()
+                    for line in list_lines_of_file:
+                        clean_line = line.strip()
+                        if not clean_line: continue
+                        data_line = clean_line.split(";")
+                        try:
+                            client_data = ClientCreate(
+                                personal_account=int(data_line[0]),
+                                full_name=data_line[1],
+                                address=data_line[2],
+                                phone_number=data_line[3],
+                                tariff=data_line[4],
+                                balance=float(data_line[5].replace(',', '.')),
+                                connection_date=date.fromisoformat(data_line[6]),
+                            )
+                            clients.append(client_data)
+                        except (ValueError, IndexError) as e:
+                            messagebox.showerror(
+                                title="Ошибка!",
+                                message=f"Ошибка в строке: {line}. Ошибка: {e}"
+                            )
+                            continue
+                    db = next(get_db())
+                    try:
+                        bulk_create_clients(db, clients)
+                    finally:
+                        db.close()
+        messagebox.showinfo(
+            title="Успешно!",
+            message="База успешна обновлена"
+        )
+
+    def _save_db_to_file(self):
+        """Метод сохранения базы данных в формате 'csv'"""
+        # TODO
+        pass
 
 
 class WindowAddClient(tkinter.Toplevel):
