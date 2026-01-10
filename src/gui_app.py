@@ -647,7 +647,7 @@ class BillingSysemApp(tkinter.Tk):
                         db.close()
         messagebox.showinfo(
             title="Успешно!",
-            message="База успешна обновлена"
+            message=f"База успешна обновлена, загружено {len(clients)} абонентов"
         )
 
     def _save_db_to_file(self):
