@@ -162,7 +162,7 @@ def update_client(db: Session, client_id: int, client_data: ClientUpdate) -> Opt
     return db_client
 
 
-def get_clients(db: Session, skip: int = 0, limit: int = 100) -> Sequence[Client]:
+def get_clients(db: Session, skip: int = 0, limit: int = 1000) -> Sequence[Client]:
     """
     Синхронно получает список клиентов с возможностью пагинации.
 
