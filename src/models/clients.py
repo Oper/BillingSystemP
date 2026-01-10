@@ -18,7 +18,7 @@ class ClientBase(BaseModel):
 
 class ClientCreate(ClientBase):
     """Модель для создания клиента (наследует ClientBase)."""
-    pass
+    connection_date: datetime
 
 
 class ClientForPayments(ClientBase):
@@ -45,6 +45,7 @@ class ClientUpdate(ClientBase):
     passport: Optional[dict] = None
     status: Optional[StatusClientEnum] = None
     status_date: Optional[datetime] = None
+    connection_date: Optional[datetime] = None
 
 
 class ClientInDB(ClientBase):

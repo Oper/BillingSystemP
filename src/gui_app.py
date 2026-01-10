@@ -1,4 +1,5 @@
 import tkinter
+from tkcalendar import DateEntry
 from datetime import date
 from tkinter import ttk, messagebox
 from tkinter.constants import END
@@ -563,12 +564,16 @@ class WindowAddClient(tkinter.Toplevel):
         self.balance_entry = ttk.Entry(self, width=40)
         self.balance_entry.grid(row=5, column=1, padx=5, pady=5)
 
+        ttk.Label(self, text="Дата подключения:").grid(row=6, column=0, padx=5, pady=5, sticky="w")
+        self.cal_entry = DateEntry(self, width=37, date_pattern="dd.mm.yyyy")
+        self.cal_entry.grid(row=6, column=1, padx=5, pady=5)
+
         # Кнопка добавления
         ttk.Button(self, text="Отправить", command=self._send_data_client).grid(
-            row=6, column=0, columnspan=2, pady=10
+            row=7, column=0, columnspan=1, pady=10
         )
         ttk.Button(self, text="Очистить поля", command=self._clear_add_fields).grid(
-            row=7, column=0, columnspan=2, pady=10
+            row=7, column=1, columnspan=1, pady=10
         )
 
         self.transient(parent)
@@ -646,6 +651,7 @@ class WindowAddClient(tkinter.Toplevel):
             "phone_number": self.phone_entry.get(),
             "tariff": self.tariff_entry.get(),
             "balance": self.balance_entry.get(),
+            "connection_date": self.cal_entry.get_date(),
         }
 
         if window_data.values():
@@ -893,7 +899,7 @@ class WindowEditAndViewClient(tkinter.Toplevel):
         current_row += 1
 
         ttk.Label(main_frame, text="Дата подключения:").grid(row=current_row, column=0, sticky='w', padx=5, pady=5)
-        self.connect_date_entry = ttk.Entry(main_frame)
+        self.connect_date_entry = DateEntry(main_frame, date_pattern="dd.mm.yyyy")
         self.connect_date_entry.grid(row=current_row, column=1, sticky='w', padx=5, pady=5)  # sticky='w'
         current_row += 1
 
@@ -1003,7 +1009,7 @@ class WindowEditAndViewClient(tkinter.Toplevel):
         self.tariff_entry.current(self._get_tariffs().index(client.tariff))
 
         self.combo_status.current(self.status_list.index(client.status))
-        self.connect_date_entry.insert(0, str(client.connection_date.date()))
+        self.connect_date_entry.set_date(client.connection_date.date())
         self.passport_ser_num.insert(0, passport_client.get("ser_num", "Нет"))
         self.passport_data.insert(0, passport_client.get("date", "Нет"))
         self.passport_how.insert(0, passport_client.get("how", "Нет"))
@@ -1049,6 +1055,7 @@ class WindowEditAndViewClient(tkinter.Toplevel):
             tariff=self.tariff_entry.get(),
             passport=passport,
             status=self.combo_status.get(),
+            connection_date=self.connect_date_entry.get_date(),
 
         )
         try:
