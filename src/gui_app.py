@@ -602,16 +602,13 @@ class BillingSysemApp(tkinter.Tk):
     def _select_file(self):
         """
         Метод для загрузки файлов в программу.
-        :return:
+        :return: # TODO Необходимо разделить логику загрузки данных в программу в отдельный метод.
         """
         ask_result = messagebox.askyesno(
             title="Подтверждение",
             message="Вы действительно хотите удалить существующую базу клиентов и загрузить новую?"
         )
         if ask_result:
-            for db in get_db():
-                clear_db_clients(db)
-                break
 
             clients = []
             list_lines_of_file = None
@@ -642,6 +639,7 @@ class BillingSysemApp(tkinter.Tk):
                             continue
                     db = next(get_db())
                     try:
+                        clear_db_clients(db)
                         bulk_create_clients(db, clients)
                     finally:
                         db.close()
