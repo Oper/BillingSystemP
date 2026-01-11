@@ -662,7 +662,7 @@ class BillingSysemApp(tkinter.Tk):
                                 address=data_line[2],
                                 phone_number=data_line[3],
                                 tariff=data_line[4],
-                                connection_date=date.strptime(data_line[5], "%Y-%m-%d").date(),
+                                connection_date=date.strptime(data_line[5], "%Y-%m-%d"),
                                 balance=float(data_line[6].replace(',', '.')),
                             )
                             clients.append(client_data)
