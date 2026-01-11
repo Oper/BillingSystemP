@@ -1,3 +1,4 @@
+import calendar
 import tkinter
 from pathlib import Path
 
@@ -13,7 +14,7 @@ from src.db.crud import delete_tariff, delete_client, get_client_by_pa, update_c
     search_clients, get_clients, get_tariffs, create_tariff, get_tariff_by_name, set_client_activity, \
     get_payments_by_client, apply_monthly_charge, apply_daily_charge, get_accruals_by_client, create_accrual_daily, \
     create_accrual_monthly, get_debtors_report, set_client_status, get_last_payment_by_client, clear_db_clients, \
-    bulk_create_clients
+    bulk_create_clients, get_last_accrual_by_client
 from src.db.database import get_db, init_db
 from src.models.clients import ClientUpdate, ClientForPayments, ClientCard, ClientCreate, ClientBase
 from src.models.payments import PaymentCreate
@@ -418,7 +419,10 @@ class BillingSysemApp(tkinter.Tk):
 
 
             except Exception as e:
-                print(e)
+                messagebox.showerror(
+                    title="Ошибка!",
+                    message=f"Произошла ошибка \nПодробнее: {e}"
+                )
 
     def _add_tariff(self):
         """Создание нового окна для добавления тарифа."""
@@ -488,28 +492,46 @@ class BillingSysemApp(tkinter.Tk):
 
     def _accrual_of_amounts(self):
         """Метод начисления ежемесячной оплаты Абонентам."""
+        db = next(get_db())
         try:
-            for db in get_db():
-                clients = get_clients(db)
-                for client in clients:
-                    if client.accrual_date is None:
-                        count_days = client.connection_date.day - self.date_todey.day
-                        result_apply_daily_charge = apply_daily_charge(db, client.id, count_days)
-                        if result_apply_daily_charge:
-                            client.accrual_date = self.date_todey
-                            create_accrual_daily(db, client.id, count_days, client.accrual_date)
+            clients = get_clients(db)
+            today = self.date_todey
 
-                    elif self.date_todey.month != client.accrual_date.month:
-                        result_apply_monthly_charge = apply_monthly_charge(db, client.id)
-                        if result_apply_monthly_charge:
-                            client.accrual_date = self.date_todey
-                            create_accrual_monthly(db, client.id, client.accrual_date)
-                break
+            for client in clients:
+                # 1. Проверяем, было ли уже начисление (чтобы не начислить дважды за месяц)
+                last_accrual = get_last_accrual_by_client(db, client.id)
+
+                if last_accrual is None and client.status == StatusClientEnum.CONNECTING:
+                    conn_date = client.connection_date
+
+                    # Если подключение было в ПРОШЛОМ месяце или раньше
+                    if conn_date.month != today.month or conn_date.year != today.year:
+                        if apply_monthly_charge(db, client.id):
+                            client.accrual_date = today
+                            tariff = get_tariff_by_name(db, client.tariff)
+                            create_accrual_monthly(db, client, tariff, today)
+
+                    # Если подключение в ЭТОМ месяце (пропорциональное начисление)
+                    else:
+                        # Узнаем сколько всего дней в месяце (для 2026 года)
+                        _, days_in_month = calendar.monthrange(conn_date.year, conn_date.month)
+
+                        # Считаем количество дней пользования: (Всего - ДеньПодключения + 1)
+                        # Если подключился 11-го, то (31 - 11 + 1) = 21 день владения
+                        actual_days = days_in_month - conn_date.day + 1
+
+                        if apply_daily_charge(db, client.id, actual_days):
+                            client.accrual_date = today
+                            create_accrual_daily(db, client.id, actual_days, today)
+
+            db.commit()  # Фиксируем все начисления одной транзакцией
+
         except Exception as e:
-            messagebox.showerror(
-                "Ошибка!",
-                f"Ошибка начисления оплаты!\nПодробнее:\n{e}"
-            )
+            db.rollback()
+            messagebox.showerror("Ошибка!", f"Ошибка начисления оплаты!\n{e}")
+        finally:
+            db.close()
+
 
     def _get_debtors_clients(self):
         """Создание нового окна для отчета."""

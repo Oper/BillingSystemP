@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, date
 from typing import List, Optional, Any, Sequence
 
 from sqlalchemy import select, or_, func, delete, Row, RowMapping, desc, insert
@@ -256,59 +256,54 @@ def get_tariffs(db: Session, skip: int = 0, limit: int = 100) -> Sequence[Tariff
 
 def apply_monthly_charge(db: Session, client_id: int) -> Optional[Client]:
     """
-    Рассчитывает ежемесячную плату для клиента и вычитает ее из баланса.
-    :param db: Активная синхронная сессия базы данных.
-    :param client_id: ID клиента.
-    :return: Обновленный объект клиента или None.
+    Рассчитывает ежемесячную плату и вычитает ее из баланса (БЕЗ коммита).
     """
     client = get_client_by_id(db, client_id)
-    if client is None or client.is_active == 0:
-        return None  # Неактивный или несуществующий клиент не списывается
 
-    # 1. Ищем тариф, чтобы узнать цену
+    # В 2026 году лучше проверять статус через Enum или явное сравнение
+    if client is None or client.status != StatusClientEnum.CONNECTING:
+        return None
+
     tariff = get_tariff_by_name(db, client.tariff)
     if tariff is None:
-        print(f"⚠️ Тариф '{client.tariff}' для клиента {client.full_name} не найден. Списание невозможно.")
-        return client  # Возвращаем клиента без изменений
+        # Логирование вместо простого принта — хороший тон в 2026
+        #logger.warning(f"Тариф '{client.tariff}' не найден для ID {client_id}")
+        return client
 
-    charge_amount = tariff.monthly_price
+    # Вычитаем стоимость
+    client.balance -= tariff.monthly_price
 
-    # 2. Обновляем баланс
-    client.balance -= charge_amount
-
-    # 3. Фиксируем изменения
-    db.commit()
-    # await db.refresh(client)
+    # db.flush() синхронизирует состояние с БД, но не закрывает транзакцию.
+    # Это позволяет другим запросам в этой же сессии видеть обновленный баланс.
+    db.flush()
 
     return client
 
 
 def apply_daily_charge(db: Session, client_id: int, count_days: int) -> Optional[Client]:
     """
-    Рассчитывает ежедневную оплату для клиента и вычитает ее из баланса.
-    :param db: Активная синхронная сессия базы данных.
-    :param client_id: ID клиента.
-    :param count_days: Количество дней для расчета оплаты.
-    :return: Обновленный объект клиента или None.
+    Рассчитывает пропорциональную оплату (БЕЗ коммита).
     """
     client = get_client_by_id(db, client_id)
-    if client is None or client.is_active == 0:
-        return None  # Неактивный или несуществующий клиент не списывается
+    if client is None or client.status != StatusClientEnum.CONNECTING:
+        return None
 
-    # 1. Ищем тариф, чтобы узнать цену
     tariff = get_tariff_by_name(db, client.tariff)
     if tariff is None:
-        print(f"⚠️ Тариф '{client.tariff}' для клиента {client.full_name} не найден. Списание невозможно.")
-        return client  # Возвращаем клиента без изменений
+        return client
 
-    charge_amount = tariff.monthly_price // 30 * count_days
+    # Расчет суммы (Вариант А: Точный финансовый через Decimal)
+    # Чтобы не терять копейки, сначала умножаем цену на дни, затем делим на 30
+    charge_amount = (tariff.monthly_price * count_days) / 30
 
-    # 2. Обновляем баланс
-    client.balance -= charge_amount
+    # Округляем до 2 знаков после запятой
+    charge_amount = round(charge_amount, 2)
 
-    # 3. Фиксируем изменения
-    db.commit()
-    # await db.refresh(client)
+    # Обновляем баланс
+    client.balance -= float(charge_amount)  # или оставить Decimal, если поле Numeric
+
+    # Синхронизируем состояние, но оставляем транзакцию открытой
+    db.flush()
 
     return client
 
@@ -445,6 +440,18 @@ def get_accruals_by_client(db: Session, client_id: int) -> Sequence[Accrual]:
     result = db.execute(stmt)
     return result.scalars().all()
 
+def get_last_accrual_by_client(db: Session, client_id: int) -> Optional[Accrual]:
+    """
+        Синхронно получает последний платеж Клиента.
+
+        :param client_id: ID Клиента.
+        :param db: Активная синхронная сессия базы данных.
+        :return: Объект платежа (моделей SQLAlchemy).
+        """
+    stmt = select(Accrual).where(Accrual.client_id == client_id).order_by(desc(Accrual.id)).limit(1)
+    result = db.execute(stmt)
+    return result.scalar_one_or_none()
+
 
 def create_accrual(db: Session, accrual: AccrualCreate) -> Accrual | None:
     """
@@ -467,68 +474,60 @@ def create_accrual(db: Session, accrual: AccrualCreate) -> Accrual | None:
         return None
 
 
-def create_accrual_daily(db: Session, client_id: int, count_days: int, accrual_date: datetime) -> Optional[
-                                                                                                      Accrual] | None:
+def create_accrual_daily(db: Session, client_id: int, count_days: int, accrual_date: datetime) -> Optional[Accrual]:
     """
-        Синхронно добавляет новые начисление в базу данных.
-
-        :param db: Активная синхронная сессия базы данных.
-        :param client_id: ID клиента.
-        :param count_days: Количество дней для расчета оплаты.
-        :param accrual_date: За какой месяц рассчитано начисление
-        :return: Созданный объект начисления (модель SQLAlchemy).
-        """
-
+    Синхронно добавляет начисление за неполный месяц.
+    """
     client = get_client_by_id(db, client_id)
     if client is None or client.is_active == 0:
-        return None  # Неактивный или несуществующий клиент не списывается
+        return None
 
-    # 1. Ищем тариф, чтобы узнать цену
     tariff = get_tariff_by_name(db, client.tariff)
     if tariff is None:
         return None
 
-    charge_amount = tariff.monthly_price // 30 * count_days
+    # Точный расчет суммы (сначала умножаем, потом делим)
+    # Используем round(..., 2) для денежного формата
+    charge_amount = round((tariff.monthly_price * count_days) / 30, 2)
 
-    accrual = AccrualCreate(
-        amount=charge_amount,
+    # Используем Pydantic v2 .model_dump()
+    accrual_data = AccrualCreate(
+        amount=float(charge_amount),
         client_id=client.id,
         accrual_date=accrual_date
     )
-    accrual_db = create_accrual(db, accrual)
+
+    # Прямое создание без лишних вложенных вызовов
+    accrual_db = Accrual(**accrual_data.model_dump())
+
+    db.add(accrual_db)
+    db.flush()  # Синхронизируем, но не закрываем транзакцию
 
     return accrual_db
 
 
-def create_accrual_monthly(db: Session, client_id: int, accrual_date: datetime) -> Optional[Accrual] | None:
+def create_accrual_monthly(db: Session, client: Client, tariff: Tariff, accrual_date: date) -> Optional[Accrual]:
     """
-        Синхронно добавляет новые начисление в базу данных.
+    Создает запись о начислении на основе уже имеющихся объектов клиента и тарифа.
+    """
+    try:
+        # Используем Pydantic схему для валидации (Pydantic v2 .model_dump())
+        accrual_data = AccrualCreate(
+            amount=tariff.monthly_price,
+            client_id=client.id,
+            accrual_date=accrual_date
+        )
 
-        :param db: Активная синхронная сессия базы данных.
-        :param client_id: ID клиента.
-        :param accrual_date: За какой месяц рассчитано начисление
-        :return: Созданный объект начисления (модель SQLAlchemy).
-        """
+        # Создаем модель SQLAlchemy
+        accrual_db = Accrual(**accrual_data.model_dump())
 
-    client = get_client_by_id(db, client_id)
-    if client is None or client.is_active == 0:
-        return None  # Неактивный или несуществующий клиент не списывается
+        db.add(accrual_db)
+        db.flush()  # Отправляем в БД, но не фиксируем (commit будет в конце цикла)
+        return accrual_db
 
-    # 1. Ищем тариф, чтобы узнать цену
-    tariff = get_tariff_by_name(db, client.tariff)
-    if tariff is None:
+    except Exception as e:
+        print(f"Ошибка создания записи начисления: {e}")
         return None
-
-    charge_amount = tariff.monthly_price
-
-    accrual = AccrualCreate(
-        amount=charge_amount,
-        client_id=client.id,
-        accrual_date=accrual_date
-    )
-    accrual_db = create_accrual(db, accrual)
-
-    return accrual_db
 
 def clear_db_clients(db: Session):
     """
