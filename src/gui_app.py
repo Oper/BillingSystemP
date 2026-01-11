@@ -532,7 +532,6 @@ class BillingSysemApp(tkinter.Tk):
         finally:
             db.close()
 
-
     def _get_debtors_clients(self):
         """Создание нового окна для отчета."""
         window_report = WindowReportClient(self, "Список должников", 0)
@@ -600,7 +599,6 @@ class BillingSysemApp(tkinter.Tk):
                     else:
                         continue
 
-
     def _get_last_payment_client(self, client_id: int, current_month: int) -> float:
         result = 0
         for db in get_db():
@@ -633,7 +631,8 @@ class BillingSysemApp(tkinter.Tk):
 
         buttons_abonents_frame = ttk.Frame(abonents_frame)
         buttons_abonents_frame.grid(row=current_row, column=0, sticky='ew', pady=15)
-        ttk.Button(buttons_abonents_frame, text="Выполнить ручное начисление", command=self._accrual_of_amounts).pack(side="left", padx=5)
+        ttk.Button(buttons_abonents_frame, text="Выполнить ручное начисление", command=self._accrual_of_amounts).pack(
+            side="left", padx=5)
 
     def _select_file(self):
         """
@@ -685,9 +684,33 @@ class BillingSysemApp(tkinter.Tk):
         )
 
     def _save_db_to_file(self):
-        """Метод сохранения базы данных в формате 'csv'"""
-        # TODO
-        pass
+        """Метод выгрузки данных абонентов в формате 'csv'.
+        Файл 'data_clients_дата_выгрузки.csv' сохраняется в папке 'out', если папка отсутствует, метод ее создает.
+        Структура содержимого файла: ЛС;ФИО;Адрес;Телефон;Тариф;Дата подключения;Баланс;Статус
+        :return:
+        """
+
+        clients = None
+        dir_path = Path("out")
+        file_path = dir_path / f"data_clients_{date.today()}.csv"
+        dir_path.mkdir(parents=True, exist_ok=True)
+
+        for db in get_db():
+            clients = get_clients(db)
+            break
+
+        if clients:
+            with file_path.open(mode="w", encoding="utf-8") as file:
+                for client in clients:
+                    record = f"{client.personal_account};{client.full_name};{client.address};{client.phone_number};{client.tariff};{client.connection_date.strftime("%Y-%m-%d")};{client.balance:.2f};{client.status.value}\n"
+                    if record:
+                        file.write(record)
+                    else:
+                        continue
+            messagebox.showinfo(
+                title="Успешно!",
+                message=f"Данные абонентов выгружены в папку '{dir_path}'!"
+            )
 
 
 class WindowAddClient(tkinter.Toplevel):
