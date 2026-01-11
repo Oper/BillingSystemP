@@ -573,7 +573,11 @@ class BillingSysemApp(tkinter.Tk):
                         full_name = client_full_name[0].capitalize()
                     amount = self._get_last_payment_client(client.id, current_month)
                     record = f"{personal_account};{full_name};;ТВ;;{amount:.2f}\n"
-                    file.write(record)
+                    if amount != 0:
+                        file.write(record)
+                    else:
+                        continue
+
 
     def _get_last_payment_client(self, client_id: int, current_month: int) -> float:
         result = 0
@@ -598,6 +602,16 @@ class BillingSysemApp(tkinter.Tk):
         buttons_frame.grid(row=current_row, column=0, sticky='ew', pady=15)
         ttk.Button(buttons_frame, text="Загрузить базу", command=self._select_file).pack(side="left", padx=5)
         ttk.Button(buttons_frame, text="Выгрузить базу", command=self._save_db_to_file).pack(side="left", padx=5)
+
+        abonents_frame = ttk.LabelFrame(frame, text="Действия с абонентами")
+        abonents_frame.grid(row=current_row, column=0, sticky='we', padx=5, pady=10)
+        abonents_frame.columnconfigure(0, weight=1)
+        abonents_frame.rowconfigure(0, weight=1)
+        current_row += 1
+
+        buttons_abonents_frame = ttk.Frame(abonents_frame)
+        buttons_abonents_frame.grid(row=current_row, column=0, sticky='ew', pady=15)
+        ttk.Button(buttons_abonents_frame, text="Выполнить ручное начисление", command=self._accrual_of_amounts).pack(side="left", padx=5)
 
     def _select_file(self):
         """
