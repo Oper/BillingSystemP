@@ -637,6 +637,7 @@ class BillingSysemApp(tkinter.Tk):
     def _select_file(self):
         """
         Метод для загрузки файлов в программу.
+        Структура файла: ЛС;ФИО;Адрес;Телефон;Тариф;Дата подключения;Баланс
         :return: # TODO Необходимо разделить логику загрузки данных в программу в отдельный метод.
         """
         ask_result = messagebox.askyesno(
@@ -646,7 +647,6 @@ class BillingSysemApp(tkinter.Tk):
         if ask_result:
 
             clients = []
-            list_lines_of_file = None
             filename = filedialog.askopenfile()
             if filename:
                 with filename:
@@ -662,8 +662,8 @@ class BillingSysemApp(tkinter.Tk):
                                 address=data_line[2],
                                 phone_number=data_line[3],
                                 tariff=data_line[4],
-                                balance=float(data_line[5].replace(',', '.')),
-                                connection_date=date.fromisoformat(data_line[6]),
+                                connection_date=data_line[5],
+                                balance=float(data_line[6].replace(',', '.')),
                             )
                             clients.append(client_data)
                         except (ValueError, IndexError) as e:
