@@ -475,6 +475,7 @@ class BillingSysemApp(tkinter.Tk):
                     address=client.address,
                     phone_number=client.phone_number,
                     tariff=client.tariff,
+                    balance=float(client.balance),
                     client_id=client.id,
                     is_active=client.is_active,
                     connection_date=client.connection_date,
@@ -1069,9 +1070,19 @@ class WindowEditAndViewClient(tkinter.Toplevel):
         current_row += 1
 
         ttk.Label(main_frame, text="Тариф:").grid(row=current_row, column=0, sticky='w', padx=5, pady=5)
-        self.tariff_entry = ttk.Combobox(main_frame, state="readonly", values=self._get_tariffs())
-        self.tariff_entry.grid(row=current_row, column=1, sticky='w', padx=5,
-                               pady=5)
+
+        # Создаем подфрейм для тарифа и баланса, чтобы они не ломали сетку основного окна
+        tariff_balance_subframe = ttk.Frame(main_frame)
+        tariff_balance_subframe.grid(row=current_row, column=1, sticky='we')
+
+        self.tariff_entry = ttk.Combobox(tariff_balance_subframe, state="readonly", values=self._get_tariffs(),
+                                         width=20)
+        self.tariff_entry.pack(side='left', padx=5)
+
+        ttk.Label(tariff_balance_subframe, text="Баланс абонента:").pack(side='left', padx=5)
+        self.balance_entry = ttk.Entry(tariff_balance_subframe, width=10)
+        self.balance_entry.pack(side='left', padx=5)
+
         current_row += 1
 
         ttk.Label(main_frame, text="Статус:").grid(row=current_row, column=0, sticky='w', padx=5, pady=5)
@@ -1090,14 +1101,13 @@ class WindowEditAndViewClient(tkinter.Toplevel):
 
         passport_frame = ttk.LabelFrame(main_frame, text="Паспортные данные")
         passport_frame.grid(row=current_row, column=0, columnspan=2, sticky='we', padx=5, pady=10)
-        passport_frame.columnconfigure(0, weight=1)
-        passport_frame.rowconfigure(0, weight=1)
-        current_row += 1
 
-        ttk.Label(passport_frame, text="Серия и номер:").grid(row=current_row, column=0, sticky='w', padx=5, pady=5)
-        self.passport_ser_num = ttk.Entry(passport_frame, width=60)
-        self.passport_ser_num.grid(row=current_row, column=1, sticky='we', padx=5, pady=5)
-        current_row += 1
+        p_row = 0  # Локальный счетчик для фрейма
+        ttk.Label(passport_frame, text="Серия и номер:").grid(row=p_row, column=0, sticky='w', padx=5, pady=5)
+        self.passport_ser_num = ttk.Entry(passport_frame)
+        self.passport_ser_num.grid(row=p_row, column=1, sticky='we', padx=5, pady=5)
+        passport_frame.columnconfigure(1, weight=1)  # Растягиваем поле ввода
+        p_row += 1
 
         ttk.Label(passport_frame, text="Дата выдачи:").grid(row=current_row, column=0, sticky='w', padx=5, pady=5)
         self.passport_data = ttk.Entry(passport_frame)
@@ -1192,7 +1202,7 @@ class WindowEditAndViewClient(tkinter.Toplevel):
         self.text_address.insert(0, client.address)
         self.phone_entry.insert(0, client.phone_number)
         self.tariff_entry.current(self._get_tariffs().index(client.tariff))
-
+        self.balance_entry.insert(0, float(client.balance))
         self.combo_status.current(self.status_list.index(client.status))
         self.connect_date_entry.set_date(client.connection_date.date())
         self.passport_ser_num.insert(0, passport_client.get("ser_num", "Нет"))
@@ -1238,6 +1248,7 @@ class WindowEditAndViewClient(tkinter.Toplevel):
             address=self.text_address.get(),
             phone_number=self.phone_entry.get(),
             tariff=self.tariff_entry.get(),
+            #balance=float(self.balance_entry.get()),
             passport=passport,
             status=self.combo_status.get(),
             connection_date=self.connect_date_entry.get_date(),
