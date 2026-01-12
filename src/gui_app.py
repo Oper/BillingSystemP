@@ -195,7 +195,7 @@ class BillingSysemApp(tkinter.Tk):
         ttk.Button(buttons_frame_analytical_reports, text="Сформировать").pack(side="left", padx=5)
         current_row += 1
 
-        downloading_reports_frame = ttk.LabelFrame(frame, text="Выгрузка отчетов")
+        downloading_reports_frame = ttk.LabelFrame(frame, text="Работа с банком")
         downloading_reports_frame.grid(row=current_row, column=0, sticky='ew', padx=5, pady=10)
         downloading_reports_frame.columnconfigure(0, weight=1)
         downloading_reports_frame.rowconfigure(0, weight=1)
@@ -205,6 +205,8 @@ class BillingSysemApp(tkinter.Tk):
         buttons_frame_downloading_reports.grid(row=current_row, column=0, sticky='ew', padx=5, pady=10)
         ttk.Button(buttons_frame_downloading_reports, text="Выгрузить реестр для банка",
                    command=self._get_report_for_bank).pack(side="left", padx=5)
+        ttk.Button(buttons_frame_downloading_reports, text="Загрузить реестр из банка",
+                   command=self._set_report_for_bank).pack(side="left", padx=5)
         current_row += 1
 
     def _search_clients(self):
@@ -599,6 +601,10 @@ class BillingSysemApp(tkinter.Tk):
                         file.write(record)
                     else:
                         continue
+
+    def _set_report_for_bank(self):
+        """Метод для загрузки данных с банка"""
+        pass
 
     def _get_last_payment_client(self, client_id: int, current_month: int) -> float:
         result = 0
@@ -1248,7 +1254,7 @@ class WindowEditAndViewClient(tkinter.Toplevel):
             address=self.text_address.get(),
             phone_number=self.phone_entry.get(),
             tariff=self.tariff_entry.get(),
-            #balance=float(self.balance_entry.get()),
+            # balance=float(self.balance_entry.get()),
             passport=passport,
             status=self.combo_status.get(),
             connection_date=self.connect_date_entry.get_date(),
