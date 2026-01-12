@@ -1,7 +1,7 @@
 from datetime import datetime, date
-from typing import List, Optional, Any, Sequence
+from typing import Optional, Sequence
 
-from sqlalchemy import select, or_, func, delete, Row, RowMapping, desc, insert
+from sqlalchemy import select, or_, func, delete, desc, insert
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
@@ -267,7 +267,7 @@ def apply_monthly_charge(db: Session, client_id: int) -> Optional[Client]:
     tariff = get_tariff_by_name(db, client.tariff)
     if tariff is None:
         # Логирование вместо простого принта — хороший тон в 2026
-        #logger.warning(f"Тариф '{client.tariff}' не найден для ID {client_id}")
+        # logger.warning(f"Тариф '{client.tariff}' не найден для ID {client_id}")
         return client
 
     # Вычитаем стоимость
@@ -416,6 +416,7 @@ def get_payments_by_client(db: Session, client_id: int) -> Sequence[Payment]:
     result = db.execute(stmt)
     return result.scalars().all()
 
+
 def get_last_payment_by_client(db: Session, client_id: int) -> Optional[Payment]:
     """
         Синхронно получает последний платеж Клиента.
@@ -428,6 +429,17 @@ def get_last_payment_by_client(db: Session, client_id: int) -> Optional[Payment]
     result = db.execute(stmt)
     return result.scalar_one_or_none()
 
+
+def get_payments_in_range(db: Session, start_date: datetime, end_date: datetime) -> Sequence[Payment]:
+    query = (
+        select(Payment)
+        .where(Payment.created_at.between(start_date, end_date))
+        .order_by(Payment.created_at.asc())
+    )
+    result = db.execute(query)
+    return result.scalars().all()
+
+
 def get_accruals_by_client(db: Session, client_id: int) -> Sequence[Accrual]:
     """
         Синхронно получает список начислений Клиента.
@@ -439,6 +451,7 @@ def get_accruals_by_client(db: Session, client_id: int) -> Sequence[Accrual]:
     stmt = select(Accrual).where(Accrual.client_id == client_id)
     result = db.execute(stmt)
     return result.scalars().all()
+
 
 def get_last_accrual_by_client(db: Session, client_id: int) -> Optional[Accrual]:
     """
@@ -528,6 +541,7 @@ def create_accrual_monthly(db: Session, client: Client, tariff: Tariff, accrual_
     except Exception as e:
         print(f"Ошибка создания записи начисления: {e}")
         return None
+
 
 def clear_db_clients(db: Session):
     """

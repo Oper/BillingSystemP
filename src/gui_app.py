@@ -3,7 +3,7 @@ import tkinter
 from pathlib import Path
 
 from tkcalendar import DateEntry
-from datetime import date
+from datetime import date, time, datetime
 from tkinter import ttk, messagebox, filedialog
 from tkinter.constants import END
 
@@ -14,7 +14,7 @@ from src.db.crud import delete_tariff, delete_client, get_client_by_pa, update_c
     search_clients, get_clients, get_tariffs, create_tariff, get_tariff_by_name, set_client_activity, \
     get_payments_by_client, apply_monthly_charge, apply_daily_charge, get_accruals_by_client, create_accrual_daily, \
     create_accrual_monthly, get_debtors_report, set_client_status, get_last_payment_by_client, clear_db_clients, \
-    bulk_create_clients, get_last_accrual_by_client
+    bulk_create_clients, get_last_accrual_by_client, get_payments_in_range
 from src.db.database import get_db, init_db
 from src.models.clients import ClientUpdate, ClientForPayments, ClientCard, ClientCreate, ClientBase
 from src.models.payments import PaymentCreate
@@ -159,8 +159,11 @@ class BillingSysemApp(tkinter.Tk):
         ttk.Button(buttons_frame_abonents, text="Список должников", command=self._get_debtors_clients).pack(side="left",
                                                                                                             padx=5)
         ttk.Button(buttons_frame_abonents, text="Список абонентов по домам").pack(side="left", padx=5)
-        ttk.Separator(buttons_frame_abonents, orient="vertical", style="black.TSeparator").pack(side="left", padx=5,
-                                                                                                pady=5)
+        ttk.Separator(
+            buttons_frame_abonents,
+            orient="vertical"
+        ).pack(side="left", fill="y", padx=10, pady=5)
+
         self.reports_analysis_box = ttk.Combobox(buttons_frame_abonents, state="readonly",
                                                  values=["Количество подключений", "Количество отключений",
                                                          "Количество приостановленных"],
@@ -178,22 +181,44 @@ class BillingSysemApp(tkinter.Tk):
         analytical_reports_frame = ttk.LabelFrame(frame, text="Аналитические отчеты")
         analytical_reports_frame.grid(row=current_row, column=0, sticky='ew', padx=5, pady=10)
         analytical_reports_frame.columnconfigure(0, weight=1)
-        analytical_reports_frame.rowconfigure(0, weight=1)
         current_row += 1
 
         buttons_frame_analytical_reports = ttk.Frame(analytical_reports_frame)
-        buttons_frame_analytical_reports.grid(row=current_row, column=0, sticky='ew', pady=10)
-        ttk.Label(buttons_frame_analytical_reports, text="Доходы:").pack(side="left", padx=5)
-        self.type_report_analysis_box = (ttk.Combobox(buttons_frame_analytical_reports, state="readonly",
-                                                      values=["по дням", "за месяц", "за год"],
-                                                      width=25))
-        self.type_report_analysis_box.pack(side="left", padx=5, pady=5)
-        self.type_report_analysis_box.current(0)
-        ttk.Separator(buttons_frame_analytical_reports, orient="vertical", style="black.TSeparator").pack(side="left",
-                                                                                                          padx=5,
-                                                                                                          pady=5)
-        ttk.Button(buttons_frame_analytical_reports, text="Сформировать").pack(side="left", padx=5)
-        current_row += 1
+        buttons_frame_analytical_reports.grid(row=0, column=0, sticky='ew', pady=10)
+
+        ttk.Label(buttons_frame_analytical_reports, text="Доходы за период").pack(side="left", padx=5)
+
+        # Дата начала
+        ttk.Label(buttons_frame_analytical_reports, text="с").pack(side="left", padx=5)
+        self.start_date = DateEntry(buttons_frame_analytical_reports, width=12, background='darkblue',
+                                    foreground='white', borderwidth=2,
+                                    date_pattern='dd.mm.yyyy')
+        self.start_date.pack(side="left", padx=5)
+
+        # Дата конца
+        ttk.Label(buttons_frame_analytical_reports, text="по").pack(side="left", padx=5)
+        self.end_date = DateEntry(buttons_frame_analytical_reports, width=12, background='darkblue',
+                                  foreground='white', borderwidth=2,
+                                  date_pattern='dd.mm.yyyy')
+        self.end_date.pack(side="left", padx=5)
+
+        # Привязываем событие изменения даты начала для проверки
+        self.start_date.bind("<<DateEntrySelected>>", self._validate_dates)
+        self.end_date.bind("<<DateEntrySelected>>", self._validate_dates)
+
+        ttk.Button(
+            buttons_frame_analytical_reports,
+            text="Сформировать",
+            command=self._get_reports_income_for_period
+        ).pack(side="left", padx=5)
+
+        ttk.Separator(
+            buttons_frame_analytical_reports,
+            orient="vertical"
+        ).pack(side="left", fill="y", padx=10, pady=5)
+
+        self.label_income_for_period = ttk.Label(buttons_frame_analytical_reports, text="0.00")
+        self.label_income_for_period.pack(side="left", padx=5)
 
         downloading_reports_frame = ttk.LabelFrame(frame, text="Работа с банком")
         downloading_reports_frame.grid(row=current_row, column=0, sticky='ew', padx=5, pady=10)
@@ -208,6 +233,30 @@ class BillingSysemApp(tkinter.Tk):
         ttk.Button(buttons_frame_downloading_reports, text="Загрузить реестр из банка",
                    command=self._set_report_for_bank).pack(side="left", padx=5)
         current_row += 1
+
+    def _validate_dates(self, event=None):
+        """Проверка, чтобы дата начала была не позже даты конца"""
+        start = self.start_date.get_date()
+        end = self.end_date.get_date()
+
+        if start > end:
+            self.end_date.set_date(start)
+
+    def _get_reports_income_for_period(self):
+        """Формирование дохода за период."""
+        start_date = self.start_date.get_date()
+        end_date = self.end_date.get_date()
+        actual_end = datetime.combine(end_date, time.max)
+        result_income_for_period:float = 0.00
+        self.label_income_for_period.config(text=str(result_income_for_period))
+        payments = None
+        for db in get_db():
+            payments = get_payments_in_range(db, start_date, actual_end)
+            break
+        if payments:
+            for payment in payments:
+                result_income_for_period += payment.amount
+            self.label_income_for_period.config(text=str(result_income_for_period))
 
     def _search_clients(self):
         """Выполняет поиск клиентов."""
