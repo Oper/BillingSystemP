@@ -10,7 +10,7 @@ from tkinter.constants import END
 
 from pydantic import ValidationError
 
-from src.db.models import StatusClientEnum
+from src.db.models import StatusClientEnum, Client
 from src.db.crud import delete_tariff, delete_client, get_client_by_pa, update_client, create_payment, create_client, \
     search_clients, get_clients, get_tariffs, create_tariff, get_tariff_by_name, set_client_activity, \
     get_payments_by_client, apply_monthly_charge, apply_daily_charge, get_accruals_by_client, create_accrual_daily, \
@@ -68,58 +68,87 @@ class BillingSysemApp(tkinter.Tk):
             self._accrual_of_amounts()
 
     def _setup_abonents_tab(self, frame):
-        """Создает элементы для вкладки 'Абоненты'."""
+        """Упрощенная вкладка 'Абоненты' с универсальным поиском и сортировкой"""
 
         search_frame = ttk.Frame(frame)
-        search_frame.pack(fill="x", padx=5, pady=5)
+        search_frame.pack(fill="x", padx=10, pady=10)
 
-        ttk.Label(search_frame, text="Поиск (ФИО/Адрес):").pack(side="left", padx=5)
-        self.search_entry = ttk.Entry(search_frame, width=30)
+        ttk.Label(search_frame, text="Поиск (Л/С, ФИО или Адрес):").pack(side="left", padx=5)
+
+        self.search_entry = ttk.Entry(search_frame)
         self.search_entry.pack(side="left", padx=5, fill="x", expand=True)
+
+        self.search_entry.bind("<Return>", lambda e: self._search_clients())
+
         ttk.Button(search_frame, text="Найти", command=self._search_clients).pack(side="left", padx=5)
         ttk.Button(search_frame, text="Сброс", command=self._load_clients).pack(side="left", padx=5)
 
-        # Виджет Treeview для отображения данных
-        self.client_tree = ttk.Treeview(
-            frame,
-            columns=("Лицевой счет", "ФИО", "Адрес", "Тариф", "Баланс", "Статус"),
-            show='headings'  # Скрываем первый столбец с индексами
-        )
-        self.client_tree.pack(fill="both", expand=True, padx=5, pady=5)
+        tree_container = ttk.Frame(frame)
+        tree_container.pack(fill="both", expand=True, padx=10, pady=5)
 
-        # Настройка заголовков столбцов
-        for col in self.client_tree['columns']:
-            self.client_tree.heading(col, text=col)
-            self.client_tree.column(col, anchor="w", width=80)
+        columns = ("account", "fio", "address", "tariff", "balance", "status")
+        self.client_tree = ttk.Treeview(tree_container, columns=columns, show='headings')
 
-        self.client_tree.column("Лицевой счет", width=30, anchor='center')
-        self.client_tree.column("Баланс", width=60, anchor='center')
-        self.client_tree.column("Статус", width=60, anchor='center')
-        self.client_tree.column("Тариф", anchor='center')
+        scrollbar = ttk.Scrollbar(tree_container, orient="vertical", command=self.client_tree.yview)
+        self.client_tree.configure(yscrollcommand=scrollbar.set)
 
-        self.group_operations_frame = ttk.LabelFrame(frame, text="Основные операции с абонентами")
-        self.group_operations_frame.pack(fill="x", padx=5, pady=10)
+        self.client_tree.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
 
-        ttk.Button(self.group_operations_frame, text="Внести оплату", command=self._add_payment).pack(side="left",
-                                                                                                      padx=5, pady=5)
-        self.status_box = ttk.Combobox(self.group_operations_frame, width=20, state="readonly",
+        headers = {
+            "account": "Лицевой счет",
+            "fio": "ФИО",
+            "address": "Адрес",
+            "tariff": "Тариф",
+            "balance": "Баланс",
+            "status": "Статус"
+        }
+
+        for col_id, col_text in headers.items():
+            self.client_tree.heading(col_id, text=col_text,
+                                     command=lambda c=col_id: self._sort_column(c, False))
+
+            width = 150 if col_id in ["fio", "address"] else 100
+            self.client_tree.column(col_id, width=width, anchor="center" if width == 100 else "w")
+
+        self.group_operations_frame = ttk.LabelFrame(frame, text="Управление")
+        self.group_operations_frame.pack(fill="x", padx=10, pady=10)
+
+        btns_subframe = ttk.Frame(self.group_operations_frame)
+        btns_subframe.pack(fill="x", padx=5, pady=5)
+
+        ttk.Button(btns_subframe, text="Оплата", command=self._add_payment).pack(side="left", padx=5)
+
+        self.status_box = ttk.Combobox(btns_subframe, width=15, state="readonly",
                                        values=["Подключен", "Отключен", "Приостановлен"])
-        self.status_box.pack(side="left", padx=5, pady=5)
-        ttk.Button(self.group_operations_frame, text="Сменить статус", command=self._set_client_satus).pack(side="left",
-                                                                                                            padx=5,
-                                                                                                            pady=5)
-        ttk.Separator(self.group_operations_frame, orient="vertical", style="black.TSeparator").pack(side="left",
-                                                                                                     padx=5, pady=5)
-        ttk.Button(self.group_operations_frame, text="Добавить клиента", command=self._add_client).pack(side="left",
-                                                                                                        padx=5, pady=5)
-        ttk.Button(self.group_operations_frame, text="Редактировать клиента", command=self._edit_client).pack(
-            side="left", padx=5, pady=5)
-        ttk.Button(self.group_operations_frame, text="Удалить клиента", command=self._delete_client).pack(side="left",
-                                                                                                          padx=5,
-                                                                                                          pady=5)
-        # Загрузка данных при старте
-        self._load_clients()
+        self.status_box.pack(side="left", padx=5)
+        self.status_box.current(0)
+
+        ttk.Button(btns_subframe, text="Статус", command=self._set_client_satus).pack(side="left", padx=5)
+
+        ttk.Separator(btns_subframe, orient="vertical").pack(side="left", fill="y", padx=10)
+
+        ttk.Button(btns_subframe, text="Добавить", command=self._add_client).pack(side="left", padx=5)
+        ttk.Button(btns_subframe, text="Изменить", command=self._edit_client).pack(side="left", padx=5)
+        ttk.Button(btns_subframe, text="Удалить", command=self._delete_client).pack(side="left", padx=5)
+
         self.client_tree.bind("<Double-Button-1>", self._open_edit_window)
+
+        self._load_clients()
+
+    def _sort_column(self, col, reverse):
+        """Сортировка содержимого Treeview"""
+        data = [(self.client_tree.set(child, col), child) for child in self.client_tree.get_children('')]
+
+        if col in ["balance", "account"]:
+            data.sort(key=lambda x: float(x[0].replace(' ', '') or 0), reverse=reverse)
+        else:
+            data.sort(key=lambda x: x[0].lower(), reverse=reverse)
+
+        for index, (val, child) in enumerate(data):
+            self.client_tree.move(child, '', index)
+
+        self.client_tree.heading(col, command=lambda: self._sort_column(col, not reverse))
 
     def _setup_tariffs_tab(self, frame):
         """Создает элементы для вкладки 'Тарифы'."""
@@ -246,19 +275,16 @@ class BillingSysemApp(tkinter.Tk):
                                      1, start_date, actual_end)
 
     def _search_clients(self):
-        """Выполняет поиск клиентов."""
-        search_term = self.search_entry.get().strip()
-        if not search_term:
-            self._load_clients()
-            return
-
+        """Выполняет поиск клиентов (синхронная версия)."""
+        val = self.search_entry.get().strip()
+        if not val:
+            return self._load_clients()
         clients = None
-
         for db in get_db():
-            clients = search_clients(db, search_term)
-            break
+            clients = search_clients(db, val)
 
         self._display_clients(clients)
+        return None
 
     def _load_clients(self):
         """Загружает и отображает список всех клиентов (или сброс поиска)."""

@@ -184,31 +184,23 @@ def get_clients(db: Session, skip: int = 0, limit: int = 1000) -> Sequence[Clien
 
 def search_clients(db: Session, search_term: str) -> Sequence[Client]:
     """
-    Асинхронно ищет клиентов по частичному совпадению ФИО или Адреса (без учета регистра).
-
-    :param db: Активная асинхронная сессия базы данных.
-    :param search_term: Строка для поиска.
-    :return: Список объектов клиентов, удовлетворяющих условию поиска.
+    Синхронно ищет клиентов по Л/С (если цифры) или по частичному совпадению
+    ФИО или Адреса (без учета регистра).
     """
-    # Преобразуем поисковый запрос для использования с оператором LIKE
     search_pattern = f"%{search_term}%"
 
-    # 1. Формируем асинхронный запрос
-    # Используем func.lower() для поиска без учета регистра
-    # Используем or_() для поиска по двум полям: full_name ИЛИ address
-    stmt = select(Client).where(
-        or_(
-            # Проверяем совпадение ФИО
-            func.lower(Client.full_name).like(func.lower(search_pattern)),
-            # Проверяем совпадение Адреса
-            func.lower(Client.address).like(func.lower(search_pattern))
+    if search_term.isdigit():
+        stmt = select(Client).where(Client.personal_account.like(search_pattern))
+    else:
+        stmt = select(Client).where(
+            or_(
+                Client.full_name.ilike(search_pattern),
+                Client.address.ilike(search_pattern)
+            )
         )
-    )
 
-    # 2. Выполняем запрос
     result = db.execute(stmt)
 
-    # 3. Получаем все результаты
     return result.scalars().all()
 
 
