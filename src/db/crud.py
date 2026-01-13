@@ -374,6 +374,20 @@ def create_payment(db: Session, payment: PaymentCreate) -> Payment | None:
         db.rollback()
         return None
 
+def get_payment_by_id(db: Session, payment_id: int) -> Optional[Payment]:
+    """
+    Синхронно получает один платеж по его уникальному ID.
+
+    :param db: Активная синхронная сессия базы данных.
+    :param payment_id: Уникальный ID платежа.
+    :return: Объект платежа или None, если платеж не найден.
+    """
+
+    stmt = select(Payment).where(Payment.id == payment_id)
+
+    result = db.execute(stmt)
+    return result.scalars().first()
+
 
 def get_payments(db: Session, skip: int = 0, limit: int = 100) -> Sequence[Payment]:
     """

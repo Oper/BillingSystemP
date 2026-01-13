@@ -1,6 +1,7 @@
 import calendar
 import tkinter
 from pathlib import Path
+from openpyxl.reader.excel import load_workbook
 
 from tkcalendar import DateEntry
 from datetime import date, time, datetime
@@ -14,7 +15,7 @@ from src.db.crud import delete_tariff, delete_client, get_client_by_pa, update_c
     search_clients, get_clients, get_tariffs, create_tariff, get_tariff_by_name, set_client_activity, \
     get_payments_by_client, apply_monthly_charge, apply_daily_charge, get_accruals_by_client, create_accrual_daily, \
     create_accrual_monthly, get_debtors_report, set_client_status, get_last_payment_by_client, clear_db_clients, \
-    bulk_create_clients, get_last_accrual_by_client, get_payments_in_range
+    bulk_create_clients, get_last_accrual_by_client, get_payments_in_range, get_payment_by_id
 from src.db.database import get_db, init_db
 from src.models.clients import ClientUpdate, ClientForPayments, ClientCard, ClientCreate, ClientBase
 from src.models.payments import PaymentCreate
@@ -247,7 +248,7 @@ class BillingSysemApp(tkinter.Tk):
         start_date = self.start_date.get_date()
         end_date = self.end_date.get_date()
         actual_end = datetime.combine(end_date, time.max)
-        result_income_for_period:float = 0.00
+        result_income_for_period: float = 0.00
         self.label_income_for_period.config(text=str(result_income_for_period))
         payments = None
         for db in get_db():
@@ -515,7 +516,7 @@ class BillingSysemApp(tkinter.Tk):
             return
         item_data = self.client_tree.item(item_id)
         values = item_data['values']
-        new_window = WindowEditAndViewClient(self)
+
         current_client = None
         try:
             for db in get_db():
@@ -539,8 +540,9 @@ class BillingSysemApp(tkinter.Tk):
                 "Ошибка!",
                 f"Произошла ошибка!\nПодробнее:\n{e}"
             )
+        new_window = WindowEditAndViewClient(self)
         new_window.set_data_client(current_client)
-        self._load_clients()
+        # self._load_clients()
 
     def _accrual_of_amounts(self):
         """Метод начисления ежемесячной оплаты Абонентам."""
@@ -1207,16 +1209,18 @@ class WindowEditAndViewClient(tkinter.Toplevel):
         payments_frame.columnconfigure(0, weight=1)
         payments_frame.rowconfigure(0, weight=1)
 
-        cols = ('date', 'amount', 'type')
+        cols = ('id', 'date', 'amount', 'type')
         self.tree_payments = ttk.Treeview(payments_frame, columns=cols, show='headings', height=5)
 
         # Настраиваем заголовки
+        self.tree_payments.heading('id', text='ИД')
         self.tree_payments.heading('date', text='Дата')
         self.tree_payments.heading('amount', text='Сумма')
         self.tree_payments.heading('type', text='Тип')
 
         # Настраиваем ширину колонок
-        self.tree_payments.column('date', width=100, anchor='center')
+        self.tree_payments.column('id', width=50, anchor='center')
+        self.tree_payments.column('date', width=50, anchor='center')
         self.tree_payments.column('amount', width=100, anchor='center')
         self.tree_payments.column('type', width=150, anchor='center')
 
@@ -1243,6 +1247,8 @@ class WindowEditAndViewClient(tkinter.Toplevel):
 
         self.btn_cancel = ttk.Button(buttons_frame, text="Отмена", command=self.on_cancel)
         self.btn_cancel.pack(side='right', padx=5)
+
+        self.tree_payments.bind("<Double-Button-1>", self._get_receipt_client)
 
         self.transient(parent)
 
@@ -1282,6 +1288,7 @@ class WindowEditAndViewClient(tkinter.Toplevel):
         for db in get_db():
             for payment in get_payments_by_client(db, client_id=client.client_id):
                 (self.tree_payments.insert("", "end", values=(
+                    payment.id,
                     payment.payment_date.strftime("%d.%m.%Y"),
                     payment.amount,
                     payment.status.title(),
@@ -1354,7 +1361,121 @@ class WindowEditAndViewClient(tkinter.Toplevel):
                 f"Возникла ошибка!\nПодробности: \n{e}"
             )
 
+    def _get_receipt_client(self, event):
+        """
+        Получение квитанции платежа.
+        :param event: Двойное нажатие мышки
+        :return:
+        """
+        item_id = self.tree_payments.identify_row(event.y)
+        if not item_id:
+            return
+        item_data = self.tree_payments.item(item_id)
+        values = item_data['values']
+        payment = None
+        payment_id = int(values[0])
+        if payment_id:
+            for db in get_db():
+                payment = get_payment_by_id(db, payment_id)
+                break
+        wb = load_workbook(filename='templates/receipt.xlsx')
+        sheet = wb['1']
+        payment_month = None
+        personal_account = self.personal_account_entry.get()
+        if payment:
+            payment_month = payment.payment_date.month
+            formatted_date = payment.created_at.strftime("%d.%m.%Y") if payment.created_at else ""
+            sheet['J3'] = formatted_date
+            sheet['W3'] = formatted_date
+            full_name = self.full_name_entry.get().upper()
+            sheet['B4'] = full_name
+            sheet['O4'] = full_name
+            address = self.text_address.get().upper()
+            sheet['B5'] = address
+            sheet['O5'] = address
 
+            sheet['J6'] = personal_account
+            sheet['W6'] = personal_account
+            id_payment = payment.id
+            sheet['J8'] = id_payment
+            sheet['W8'] = id_payment
+            payment_data_start, payment_data_end = self._get_month_range(payment.payment_date.month, payment.payment_date.year)
+            sheet['C11'] = payment_data_start.strftime("%d.%m.%Y")
+            sheet['I11'] = payment_data_end.strftime("%d.%m.%Y")
+            sheet['P11'] = payment_data_start.strftime("%d.%m.%Y")
+            sheet['V11'] = payment_data_end.strftime("%d.%m.%Y")
+            amount = f"{payment.amount:.2f} руб."
+            sheet['I12'] = amount
+            sheet['V12'] = amount
+            sheet['I14'] = amount
+            sheet['V14'] = amount
+
+        result = self._save_report(wb, f"Квитанция_ЛС-{personal_account}_ИД-{payment_id}_месяц-{payment_month}.xlsx")
+        if result:
+            # Можно, например, автоматически открыть файл после сохранения
+            import os
+            os.startfile(result)
+
+    def _get_month_range(self, month_num: int, year: int) -> tuple:
+        """
+        Метод получения периода полного месяца.
+        :param month_num: Номер месяца (1-12)
+        :param year: Год
+        :return: Кортеж объектов дат, например: data_start, data_end
+        """
+        if not 1 <= month_num <= 12:
+            return " ", " "
+
+        start_date = date(year, month_num, 1)
+
+        _, last_day = calendar.monthrange(year, month_num)
+
+        end_date = date(year, month_num, last_day)
+
+        return start_date, end_date
+
+    def _save_report(self, wb, default_filename="Отчет.xlsx"):
+        """
+        Метод сохранения файл отчетов, заявлений и договоров.
+        :param wb: Объект шаблона книги
+        :param default_filename: Имя файла
+        :return:
+        """
+        file_path_str = filedialog.asksaveasfilename(
+            title=f"Выберите место для сохранения {default_filename}",
+            defaultextension=".xlsx",
+            initialfile=default_filename,
+            filetypes=[("Excel files", "*.xlsx"), ("All files", "*.*")]
+        )
+
+        # Если пользователь нажал "Отмена", file_path_str будет пустой строкой
+        if not file_path_str:
+            messagebox.showinfo(
+                title="Отмена",
+                message="Операция отменена"
+            )
+            return None
+
+        # 2. Используем pathlib для работы с путем
+        save_path = Path(file_path_str)
+
+        try:
+            # Убеждаемся, что директория существует (на случай, если путь введен вручную)
+            save_path.parent.mkdir(parents=True, exist_ok=True)
+
+            # 3. Сохраняем книгу
+            wb.save(str(save_path))
+
+            messagebox.showinfo("Успех", f"Файл сохранен:\n{save_path.name}")
+            return save_path
+
+        except PermissionError:
+            error_msg = "Ошибка доступа: закройте файл, если он открыт в Excel, и попробуйте снова."
+            messagebox.showerror("Ошибка доступа", error_msg)
+        except Exception as e:
+            messagebox.showerror("Ошибка", f"Не удалось сохранить файл: {e}")
+
+        return None
 class WindowReportClient(tkinter.Toplevel):
     """Класс для вызова окна отчетов по Абонентам."""
 
