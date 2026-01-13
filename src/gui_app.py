@@ -15,7 +15,7 @@ from src.db.crud import delete_tariff, delete_client, get_client_by_pa, update_c
     search_clients, get_clients, get_tariffs, create_tariff, get_tariff_by_name, set_client_activity, \
     get_payments_by_client, apply_monthly_charge, apply_daily_charge, get_accruals_by_client, create_accrual_daily, \
     create_accrual_monthly, get_debtors_report, set_client_status, get_last_payment_by_client, clear_db_clients, \
-    bulk_create_clients, get_last_accrual_by_client, get_payments_in_range, get_payment_by_id
+    bulk_create_clients, get_last_accrual_by_client, get_payments_in_range, get_payment_by_id, get_client_by_id
 from src.db.database import get_db, init_db
 from src.models.clients import ClientUpdate, ClientForPayments, ClientCard, ClientCreate, ClientBase
 from src.models.payments import PaymentCreate
@@ -213,14 +213,6 @@ class BillingSysemApp(tkinter.Tk):
             command=self._get_reports_income_for_period
         ).pack(side="left", padx=5)
 
-        ttk.Separator(
-            buttons_frame_analytical_reports,
-            orient="vertical"
-        ).pack(side="left", fill="y", padx=10, pady=5)
-
-        self.label_income_for_period = ttk.Label(buttons_frame_analytical_reports, text="0.00")
-        self.label_income_for_period.pack(side="left", padx=5)
-
         downloading_reports_frame = ttk.LabelFrame(frame, text="Работа с банком")
         downloading_reports_frame.grid(row=current_row, column=0, sticky='ew', padx=5, pady=10)
         downloading_reports_frame.columnconfigure(0, weight=1)
@@ -248,16 +240,10 @@ class BillingSysemApp(tkinter.Tk):
         start_date = self.start_date.get_date()
         end_date = self.end_date.get_date()
         actual_end = datetime.combine(end_date, time.max)
-        result_income_for_period: float = 0.00
-        self.label_income_for_period.config(text=str(result_income_for_period))
-        payments = None
-        for db in get_db():
-            payments = get_payments_in_range(db, start_date, actual_end)
-            break
-        if payments:
-            for payment in payments:
-                result_income_for_period += payment.amount
-            self.label_income_for_period.config(text=str(result_income_for_period))
+
+        window_report = WindowReport(self,
+                                           f"Список платежей за период с {start_date.strftime("%d.%m.%Y")} по {end_date.strftime("%d.%m.%Y")}",
+                                     1, start_date, actual_end)
 
     def _search_clients(self):
         """Выполняет поиск клиентов."""
@@ -588,7 +574,7 @@ class BillingSysemApp(tkinter.Tk):
 
     def _get_debtors_clients(self):
         """Создание нового окна для отчета."""
-        window_report = WindowReportClient(self, "Список должников", 0)
+        window_report = WindowReport(self, "Список должников", 0)
 
     def _get_result_report_analysis(self):
         """Метод получения месячного отчета по движению абонентов за месяц
@@ -1399,7 +1385,8 @@ class WindowEditAndViewClient(tkinter.Toplevel):
             id_payment = payment.id
             sheet['J8'] = id_payment
             sheet['W8'] = id_payment
-            payment_data_start, payment_data_end = self._get_month_range(payment.payment_date.month, payment.payment_date.year)
+            payment_data_start, payment_data_end = self._get_month_range(payment.payment_date.month,
+                                                                         payment.payment_date.year)
             sheet['C11'] = payment_data_start.strftime("%d.%m.%Y")
             sheet['I11'] = payment_data_end.strftime("%d.%m.%Y")
             sheet['P11'] = payment_data_start.strftime("%d.%m.%Y")
@@ -1476,55 +1463,100 @@ class WindowEditAndViewClient(tkinter.Toplevel):
             messagebox.showerror("Ошибка", f"Не удалось сохранить файл: {e}")
 
         return None
-class WindowReportClient(tkinter.Toplevel):
-    """Класс для вызова окна отчетов по Абонентам."""
 
-    def __init__(self, parent, title: str = "Отчет", report_type: int = 0):
+
+class WindowReport(tkinter.Toplevel):
+    def __init__(self, parent, title: str = "Отчет", report_type: int = 0, start_date=None, end_date=None):
         super().__init__(parent)
         self.title(title)
-        self.geometry("600x650")
-        self.resizable(False, False)
-        self.report_type: int = report_type
+        self.geometry("800x650")
+        self.resizable(True, True)
 
-        report_frame = ttk.Frame(self, padding=5, borderwidth=5, relief="ridge")
+        self.report_type = report_type
+        self.start_date = start_date
+        self.end_date = end_date
 
-        cols = ["personal_account", "full_name", "address", "balance", "status"]
-        self.tree_frame = ttk.Treeview(report_frame, columns=cols, show='headings', height=5)
+        self.total_amount_var = tkinter.StringVar(value="0.00")
 
-        self.tree_frame.heading("personal_account", text="Лицевой счет")
-        self.tree_frame.heading("full_name", text="ФИО")
-        self.tree_frame.heading("address", text="Адрес")
-        self.tree_frame.heading("balance", text="Баланс")
-        self.tree_frame.heading("status", text="Статус")
+        total_frame = ttk.Frame(self, padding=10, relief="flat")
+        total_frame.pack(side="bottom", fill="x")
 
-        for col in self.tree_frame['columns']:
-            self.tree_frame.column(col, width=10, anchor="center")
+        if report_type == 1:
+            ttk.Label(total_frame, text="Итоговая сумма за период:").pack(side="left")
+            ttk.Label(total_frame, textvariable=self.total_amount_var,
+                      foreground="blue").pack(side="left", padx=5)
+            ttk.Label(total_frame, text="руб.").pack(side="left")
 
+        report_frame = ttk.Frame(self, padding=5)
         report_frame.pack(fill="both", expand=True)
-        self.tree_frame.pack(fill="both", expand=True)
 
-        self._load_clients(self.report_type)
+        if report_type == 0:
+            cols = {
+                "personal_account": ("Л/С", 100),
+                "full_name": ("ФИО", 200),
+                "address": ("Адрес", 250),
+                "balance": ("Баланс", 100),
+                "status": ("Статус", 100),
+            }
+        else:
+            cols = {
+                "personal_account": ("Л/С", 100),
+                "full_name": ("ФИО", 250),
+                "payment_date": ("Дата платежа", 120),
+                "amount": ("Сумма", 100),
+            }
+
+        self.tree_frame = ttk.Treeview(report_frame, columns=list(cols.keys()), show='headings')
+
+        scrollbar = ttk.Scrollbar(report_frame, orient="vertical", command=self.tree_frame.yview)
+        self.tree_frame.configure(yscrollcommand=scrollbar.set)
+
+        for col_key, (col_text, col_width) in cols.items():
+            self.tree_frame.heading(col_key, text=col_text)
+            self.tree_frame.column(col_key, width=col_width, anchor="center")
+
+        self.tree_frame.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+
+        if report_type == 0:
+            self._load_clients()
+        elif report_type == 1:
+            self._load_payments()
 
         self.transient(parent)
+        self.grab_set()
 
-    def _load_clients(self, report_type: int):
-        """Загружает и отображает список всех клиентов в зависимости от переданного параметра.
-        :param report_type: Тип отчета для загрузки клиентов. 0 - Список должников; 1 - Список абонентов по домам.
+    def _load_clients(self):
+        """
+        Загружает и отображает список клиентов должников.
         """
         # 1. Очистка Treeview
         for item in self.tree_frame.get_children():
             self.tree_frame.delete(item)
 
         clients = None
-
-        # 2. Получение данных
-        if report_type == 0:
-            for db in get_db():
-                clients = get_debtors_report(db)
-                break
+        for db in get_db():
+            clients = get_debtors_report(db)
+            break
 
         # 3. Отображение
         self._display_clients(clients)
+
+    def _load_payments(self):
+        """
+        Загружает и отображает список платежей за период.
+        """
+        # 1. Очистка Treeview
+        for item in self.tree_frame.get_children():
+            self.tree_frame.delete(item)
+
+        payments = None
+        for db in get_db():
+            payments = get_payments_in_range(db, self.start_date, self.end_date)
+            break
+
+        # 3. Отображение
+        self._display_payments(payments)
 
     def _display_clients(self, clients):
         """Отображает список объектов клиентов в Treeview."""
@@ -1541,8 +1573,27 @@ class WindowReportClient(tkinter.Toplevel):
                 client.status.value,
             ))
 
+    def _display_payments(self, payments):
+        """Отображает список платежей и обновляет итог."""
+        for item in self.tree_frame.get_children():
+            self.tree_frame.delete(item)
 
-# --- Запуск приложения ---
+        total_sum = 0.0
+
+        for db in get_db():
+            for payment in payments:
+                client = get_client_by_id(db, payment.client_id)
+                self.tree_frame.insert("", "end", values=(
+                    client.personal_account,
+                    client.full_name,
+                    payment.payment_date.strftime("%d.%m.%Y"),
+                    f"{payment.amount:.2f}",
+                ))
+                total_sum += float(payment.amount)
+            break
+
+        self.total_amount_var.set(f"{total_sum:,.2f}".replace(",", " "))
+
 if __name__ == "__main__":
     app = BillingSysemApp()
     app.mainloop()
