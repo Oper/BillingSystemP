@@ -1766,16 +1766,16 @@ class WindowReport(tkinter.Toplevel):
         elif report_type == 1:
             self._load_payments()
 
-        # self._center_to_parent(parent)
+        self._center_to_parent(parent)
 
         self.transient(parent)
         self.grab_set()
 
-    # def _center_to_parent(self, parent):
-    #     self.update_idletasks()
-    #     x = parent.winfo_rootx() + (parent.winfo_width() // 2) - (self.winfo_width() // 2)
-    #     y = parent.winfo_rooty() + (parent.winfo_height() // 2) - (self.winfo_height() // 2)
-    #     self.geometry(f"+{x}+{y}")
+    def _center_to_parent(self, parent):
+        self.update_idletasks()
+        x = parent.winfo_rootx() + (parent.winfo_width() // 2) - (self.winfo_width() // 2)
+        y = parent.winfo_rooty() + (parent.winfo_height() // 2) - (self.winfo_height() // 2)
+        self.geometry(f"+{x}+{y}")
 
     def _load_clients(self):
         """
