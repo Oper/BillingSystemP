@@ -49,7 +49,7 @@ class Client(BaseModel):
 
 
 class Service(BaseModel):
-    """Модель услуг TODO"""
+    """Модель услуг"""
     __tablename__ = 'services'
     service_name: Mapped[str] = mapped_column(unique=True)
     service_price: Mapped[float] = mapped_column(default=0.0)

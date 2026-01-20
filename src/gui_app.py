@@ -10,16 +10,18 @@ from tkinter.constants import END
 
 from pydantic import ValidationError
 
-from src.db.models import StatusClientEnum, Client
+from src.db.models import StatusClientEnum
 from src.db.crud import delete_tariff, delete_client, get_client_by_pa, update_client, create_payment, create_client, \
     search_clients, get_clients, get_tariffs, create_tariff, get_tariff_by_name, set_client_activity, \
     get_payments_by_client, apply_monthly_charge, apply_daily_charge, get_accruals_by_client, create_accrual_daily, \
     create_accrual_monthly, get_debtors_report, set_client_status, get_last_payment_by_client, clear_db_clients, \
-    bulk_create_clients, get_last_accrual_by_client, get_payments_in_range, get_payment_by_id, get_client_by_id
+    bulk_create_clients, get_last_accrual_by_client, get_payments_in_range, get_payment_by_id, get_client_by_id, \
+    create_service, get_services, get_service_by_name, delete_service
 from src.db.database import get_db, init_db
 from src.models.clients import ClientUpdate, ClientForPayments, ClientCard, ClientCreate, ClientBase
 from src.models.payments import PaymentCreate
 from src.models.tariffs import TariffCreate
+from src.models.services import ServiceCreate
 
 
 class BillingSysemApp(tkinter.Tk):
@@ -52,7 +54,7 @@ class BillingSysemApp(tkinter.Tk):
         settings = ttk.Frame(notebook)
 
         notebook.add(abonents, text="Абоненты")
-        notebook.add(tariffs, text="Тарифы")
+        notebook.add(tariffs, text="Тарифы и Услуги")
         notebook.add(reports, text="Отчеты")
         notebook.add(settings, text="Настройки")
 
@@ -151,26 +153,75 @@ class BillingSysemApp(tkinter.Tk):
         self.client_tree.heading(col, command=lambda: self._sort_column(col, not reverse))
 
     def _setup_tariffs_tab(self, frame):
-        """Создает элементы для вкладки 'Тарифы'."""
+        """Создает таблицы 'Тарифы' и 'Услуги'"""
 
-        # Виджет Treeview для отображения данных
+        # --- СЕКЦИЯ 1: ТАРИФЫ ---
+        tariffs_label_frame = ttk.LabelFrame(frame, text="Список основных тарифов", padding=10)
+        tariffs_label_frame.pack(fill="both", expand=True, padx=10, pady=5)
+
+        tree_container_t = ttk.Frame(tariffs_label_frame)
+        tree_container_t.pack(fill="both", expand=True)
+
         self.tariffs_tree = ttk.Treeview(
-            frame,
-            columns=("Наименование тарифа", "Цена за месяц", "Статус"),
-            show='headings'  # Скрываем первый столбец с индексами
+            tree_container_t,
+            columns=("name", "price", "status"),
+            show='headings',
+            height=6  # Ограничиваем начальную высоту
         )
-        self.tariffs_tree.pack(fill="both", expand=True, padx=5, pady=5)
 
-        # Настройка заголовков столбцов
-        for col in self.tariffs_tree['columns']:
-            self.tariffs_tree.heading(col, text=col)
-            self.tariffs_tree.column(col, anchor="center", width=80)
+        scrollbar_t = ttk.Scrollbar(tree_container_t, orient="vertical", command=self.tariffs_tree.yview)
+        self.tariffs_tree.configure(yscrollcommand=scrollbar_t.set)
+        self.tariffs_tree.pack(side="left", fill="both", expand=True)
+        scrollbar_t.pack(side="right", fill="y")
 
-        ttk.Button(frame, text="Добавить тариф", command=self._add_tariff).pack(side="left", padx=5)
-        ttk.Separator(frame, orient="vertical", style="black.TSeparator").pack(side="left", padx=5, pady=5)
-        ttk.Button(frame, text="Удалить тариф", command=self._delete_tariff).pack(side="left", padx=5)
+        # Настройка колонок тарифов
+        t_cols = {"name": ("Наименование тарифа", 250), "price": ("Цена/мес", 100), "status": ("Статус", 100)}
+        for cid, (txt, width) in t_cols.items():
+            self.tariffs_tree.heading(cid, text=txt,
+                                      command=lambda c=cid: self._sort_column(self.tariffs_tree, c, False))
+            self.tariffs_tree.column(cid, anchor="center", width=width)
 
+        # Кнопки тарифов
+        t_btns = ttk.Frame(tariffs_label_frame)
+        t_btns.pack(fill="x", pady=5)
+        ttk.Button(t_btns, text="Добавить тариф", command=self._add_tariff).pack(side="left", padx=5)
+        ttk.Button(t_btns, text="Удалить тариф", command=self._delete_tariff).pack(side="left", padx=5)
+
+        # --- СЕКЦИЯ 2: УСЛУГИ ---
+        services_label_frame = ttk.LabelFrame(frame, text="Услуги", padding=10)
+        services_label_frame.pack(fill="both", expand=True, padx=10, pady=5)
+
+        tree_container_s = ttk.Frame(services_label_frame)
+        tree_container_s.pack(fill="both", expand=True)
+
+        self.services_tree = ttk.Treeview(
+            tree_container_s,
+            columns=("name", "cost"),
+            show='headings',
+            height=6
+        )
+
+        scrollbar_s = ttk.Scrollbar(tree_container_s, orient="vertical", command=self.services_tree.yview)
+        self.services_tree.configure(yscrollcommand=scrollbar_s.set)
+        self.services_tree.pack(side="left", fill="both", expand=True)
+        scrollbar_s.pack(side="right", fill="y")
+
+        # Настройка колонок услуг
+        s_cols = {"name": ("Наименование услуги", 250), "cost": ("Стоимость", 100)}
+        for cid, (txt, width) in s_cols.items():
+            self.services_tree.heading(cid, text=txt,
+                                       command=lambda c=cid: self._sort_column(self.services_tree, c, False))
+            self.services_tree.column(cid, anchor="center", width=width)
+
+        # Кнопки услуг
+        s_btns = ttk.Frame(services_label_frame)
+        s_btns.pack(fill="x", pady=5)
+        ttk.Button(s_btns, text="Добавить услугу", command=self._add_service).pack(side="left", padx=5)
+        ttk.Button(s_btns, text="Удалить услугу", command=self._delete_service).pack(side="left", padx=5)
+
+        # Загрузка данных
         self._load_tariffs()
+        self._load_services()
 
     def _setup_reports_tab(self, frame):
         """Создает элементы для вкладки 'Отчеты'"""
@@ -271,7 +322,7 @@ class BillingSysemApp(tkinter.Tk):
         actual_end = datetime.combine(end_date, time.max)
 
         window_report = WindowReport(self,
-                                           f"Список платежей за период с {start_date.strftime("%d.%m.%Y")} по {end_date.strftime("%d.%m.%Y")}",
+                                     f"Список платежей за период с {start_date.strftime("%d.%m.%Y")} по {end_date.strftime("%d.%m.%Y")}",
                                      1, start_date, actual_end)
 
     def _search_clients(self):
@@ -337,6 +388,18 @@ class BillingSysemApp(tkinter.Tk):
                 is_active_status
             ))
 
+    def _display_services(self, services):
+        """Отображает список объектов тарифов в Treeview."""
+        # Очистка Treeview
+        for item in self.services_tree.get_children():
+            self.services_tree.delete(item)
+
+        for service in services:
+            self.services_tree.insert("", "end", values=(
+                service.service_name,
+                service.service_price,
+            ))
+
     def _setup_tariff_tab(self, frame):
 
         # Виджет Treeview для отображения данных
@@ -368,6 +431,20 @@ class BillingSysemApp(tkinter.Tk):
 
         # 3. Отображение
         self._display_tariffs(tariffs)
+
+    def _load_services(self):
+        """Загружает и отображает список всех Услуг."""
+        # 1. Очистка Treeview
+        for item in self.services_tree.get_children():
+            self.services_tree.delete(item)
+        service = None
+        # 2. Получение данных
+        for db in get_db():
+            service = get_services(db)
+            break
+
+        # 3. Отображение
+        self._display_services(service)
 
     def _delete_client(self):
         """Обрабатывает нажатие кнопки 'Удалить клиента'."""
@@ -425,12 +502,12 @@ class BillingSysemApp(tkinter.Tk):
                 print(e)
 
     def _delete_tariff(self):
-        """Обрабатывает нажатие кнопки 'Удалить клиента'."""
+        """Обрабатывает нажатие кнопки 'Удалить Тариф'."""
         select_tariff = self.tariffs_tree.item(self.tariffs_tree.focus()).get('values')
         if not select_tariff:
             messagebox.showerror(
                 "Внимание!",
-                "Необходимо выбрать абонента!"
+                "Необходимо выбрать тариф!"
             )
         else:
             try:
@@ -439,13 +516,36 @@ class BillingSysemApp(tkinter.Tk):
                     delete_tariff(db, int(tariff.id))
                     messagebox.showinfo(
                         "Успех",
-                        f"Клиент {tariff.name} успешно удален!"
+                        f"Тариф {tariff.name} успешно удален!"
                     )
                     break
             except Exception as e:
-                messagebox.showerror("Ошибка удаления", f"Не удалось удалить клиента:\n{e}")
+                messagebox.showerror("Ошибка удаления", f"Не удалось удалить тариф:\n{e}")
 
             self._load_tariffs()
+
+    def _delete_service(self):
+        """Обрабатывает нажатие кнопки 'Удалить Услугу'."""
+        select_service = self.services_tree.item(self.services_tree.focus()).get('values')
+        if not select_service:
+            messagebox.showerror(
+                "Внимание!",
+                "Необходимо выбрать Услугу!"
+            )
+        else:
+            try:
+                for db in get_db():
+                    service = get_service_by_name(db, select_service[0])
+                    delete_service(db, int(service.id))
+                    messagebox.showinfo(
+                        "Успех",
+                        f"Услуга {service.service_name} успешно удалена!"
+                    )
+                    break
+            except Exception as e:
+                messagebox.showerror("Ошибка удаления", f"Не удалось удалить Услугу:\n{e}")
+
+            self._load_services()
 
     def _add_client(self):
         """Создание нового окна для добавления клиента."""
@@ -491,6 +591,10 @@ class BillingSysemApp(tkinter.Tk):
     def _add_tariff(self):
         """Создание нового окна для добавления тарифа."""
         add_window_tariff = WindowAddTariff(self)
+
+    def _add_service(self):
+        """Создание нового окна для добавления Услуги."""
+        add_window_service = WindowAddService(self)
 
     def _set_client_satus(self):
         """Обрабатывает нажатие кнопки 'Приостановить'."""
@@ -1054,7 +1158,7 @@ class WindowAddPayment(tkinter.Toplevel):
 
 
 class WindowAddTariff(tkinter.Toplevel):
-    """Класс для вызова окна добавления тарифа."""
+    """Класс для вызова окна добавления тарифа (Версия 2026)."""
 
     def __init__(self, parent):
         super().__init__(parent)
@@ -1062,28 +1166,58 @@ class WindowAddTariff(tkinter.Toplevel):
         self.geometry('400x200')
         self.resizable(False, False)
 
-        ttk.Label(self, text="Наименование тарифа:").grid(row=1, column=0, padx=5, pady=5, sticky="w")
-        self.name_tariff = ttk.Entry(self, width=40)
-        self.name_tariff.grid(row=1, column=1, padx=5, pady=5)
+        # Используем фрейм для управления версткой
+        main_frame = ttk.Frame(self, padding=10)
+        main_frame.pack(fill="both", expand=True)
 
-        ttk.Label(self, text="Стоимость в месяц:").grid(row=2, column=0, padx=5, pady=5, sticky="w")
-        self.tariff_price_entry = ttk.Entry(self, width=40)
-        self.tariff_price_entry.grid(row=2, column=1, padx=5, pady=5)
+        ttk.Label(main_frame, text="Наименование тарифа:").grid(row=0, column=0, padx=5, pady=5, sticky="w")
+        self.name_tariff = ttk.Entry(main_frame, width=30)
+        self.name_tariff.grid(row=0, column=1, padx=5, pady=5, sticky="we")
+
+        ttk.Label(main_frame, text="Стоимость в месяц:").grid(row=1, column=0, padx=5, pady=5, sticky="w")
+        self.tariff_price_entry = ttk.Entry(main_frame, width=30)
+        self.tariff_price_entry.grid(row=1, column=1, padx=5, pady=5, sticky="we")
 
         # Кнопка добавления
-        ttk.Button(self, text="Отправить", command=self._add_tariff).grid(
-            row=3, column=0, columnspan=2, pady=10
+        ttk.Button(main_frame, text="Отправить", command=self._add_tariff).grid(
+            row=2, column=0, columnspan=2, pady=15
         )
+
+        # Растягиваем вторую колонку, чтобы поля ввода занимали все место
+        main_frame.columnconfigure(1, weight=1)
+
+        self._center_to_parent(parent)
 
         self.transient(parent)
         self.grab_set()
 
+    def _center_to_parent(self, parent):
+        self.update_idletasks()
+        x = parent.winfo_rootx() + (parent.winfo_width() // 2) - (self.winfo_width() // 2)
+        y = parent.winfo_rooty() + (parent.winfo_height() // 2) - (self.winfo_height() // 2)
+        self.geometry(f"+{x}+{y}")
+
     def _add_tariff(self):
         """Обрабатывает нажатие кнопки "Добавить тариф"."""
+        name = self.name_tariff.get().strip()
+        price_str = self.tariff_price_entry.get().strip()
+
+        # 1. Валидация ввода
+        if not name or not price_str:
+            messagebox.showwarning("Внимание", "Заполните все поля.")
+            return
+
+        try:
+            # Преобразуем цену в число (float)
+            price = float(price_str.replace(',', '.'))
+        except ValueError:
+            messagebox.showerror("Ошибка ввода", "Некорректный формат цены. Используйте цифры и точку.")
+            return
+
         try:
             window_data = {
-                "name": self.name_tariff.get(),
-                "monthly_price": self.tariff_price_entry.get(),
+                "name": name,
+                "monthly_price": price,
             }
             if window_data:
 
@@ -1099,6 +1233,84 @@ class WindowAddTariff(tkinter.Toplevel):
 
         except Exception as e:
             messagebox.showerror("Ошибка добавления", f"Не удалось добавить тариф:\n{e}")
+
+
+class WindowAddService(tkinter.Toplevel):
+    """Класс для вызова окна добавления Услуги."""
+
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.title('Добавить Услугу')
+        self.geometry('400x200')
+        self.resizable(False, False)
+
+        # Используем фрейм для управления версткой
+        main_frame = ttk.Frame(self, padding=10)
+        main_frame.pack(fill="both", expand=True)
+
+        ttk.Label(main_frame, text="Наименование Услуги:").grid(row=0, column=0, padx=5, pady=5, sticky="w")
+        self.name_service = ttk.Entry(main_frame, width=30)
+        self.name_service.grid(row=0, column=1, padx=5, pady=5, sticky="we")
+
+        ttk.Label(main_frame, text="Стоимость в месяц:").grid(row=1, column=0, padx=5, pady=5, sticky="w")
+        self.service_price_entry = ttk.Entry(main_frame, width=30)
+        self.service_price_entry.grid(row=1, column=1, padx=5, pady=5, sticky="we")
+
+        # Кнопка добавления
+        ttk.Button(main_frame, text="Отправить", command=self._add_service).grid(
+            row=2, column=0, columnspan=2, pady=15
+        )
+
+        # Растягиваем вторую колонку, чтобы поля ввода занимали все место
+        main_frame.columnconfigure(1, weight=1)
+
+        self._center_to_parent(parent)
+
+        self.transient(parent)
+        self.grab_set()
+
+    def _center_to_parent(self, parent):
+        self.update_idletasks()
+        x = parent.winfo_rootx() + (parent.winfo_width() // 2) - (self.winfo_width() // 2)
+        y = parent.winfo_rooty() + (parent.winfo_height() // 2) - (self.winfo_height() // 2)
+        self.geometry(f"+{x}+{y}")
+
+    def _add_service(self):
+        """Обрабатывает нажатие кнопки "Добавить тариф"."""
+        name = self.name_service.get().strip()
+        price_str = self.service_price_entry.get().strip()
+
+        # 1. Валидация ввода
+        if not name or not price_str:
+            messagebox.showwarning("Внимание", "Заполните все поля.")
+            return
+
+        try:
+            # Преобразуем цену в число (float)
+            price = float(price_str.replace(',', '.'))
+        except ValueError:
+            messagebox.showerror("Ошибка ввода", "Некорректный формат цены. Используйте цифры и точку.")
+            return
+
+        try:
+            window_data = {
+                "service_name": name,
+                "service_price": price,
+            }
+            if window_data:
+
+                # 2. Вызов синхронной CRUD-функции
+                for db in get_db():
+                    new_service = create_service(db, ServiceCreate(**window_data))
+                    messagebox.showinfo(
+                        "Успех",
+                        f"Услуга {new_service.service_name} успешно добавлена!"
+                    )
+                    break
+            self.destroy()
+
+        except Exception as e:
+            messagebox.showerror("Ошибка добавления", f"Не удалось добавить услугу:\n{e}")
 
 
 class WindowEditAndViewClient(tkinter.Toplevel):
@@ -1554,8 +1766,16 @@ class WindowReport(tkinter.Toplevel):
         elif report_type == 1:
             self._load_payments()
 
+        # self._center_to_parent(parent)
+
         self.transient(parent)
         self.grab_set()
+
+    # def _center_to_parent(self, parent):
+    #     self.update_idletasks()
+    #     x = parent.winfo_rootx() + (parent.winfo_width() // 2) - (self.winfo_width() // 2)
+    #     y = parent.winfo_rooty() + (parent.winfo_height() // 2) - (self.winfo_height() // 2)
+    #     self.geometry(f"+{x}+{y}")
 
     def _load_clients(self):
         """
@@ -1629,6 +1849,7 @@ class WindowReport(tkinter.Toplevel):
             break
 
         self.total_amount_var.set(f"{total_sum:,.2f}".replace(",", " "))
+
 
 if __name__ == "__main__":
     app = BillingSysemApp()

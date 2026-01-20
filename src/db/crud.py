@@ -5,7 +5,8 @@ from sqlalchemy import select, or_, func, delete, desc, insert
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
-from src.db.models import Client, Tariff, Payment, Accrual, StatusClientEnum
+from src.models.services import ServiceCreate
+from src.db.models import Client, Tariff, Service, Payment, Accrual, StatusClientEnum
 from src.models.clients import ClientCreate, ClientUpdate
 from src.models.payments import PaymentCreate
 from src.models.tariffs import TariffCreate
@@ -78,13 +79,40 @@ def delete_tariff(db: Session, tariff_id: int) -> bool:
             Синхронно удаляет тариф в базе данных.
 
             :param db: Активная синхронная сессия базы данных.
-            :param tariff_id: Идентификатор клиента.
-            :return: True, если клиент был успешно удален, False в противном случае.
+            :param tariff_id: Идентификатор Тарифа.
+            :return: True, если тариф был успешно удален, False в противном случае.
             """
     # 1. Формируем запрос на удаление
     # DELETE FROM clients WHERE id = :client_id
     try:
         stmt = delete(Tariff).where(Tariff.id == tariff_id)
+
+        # 2. Выполняем запрос
+        db.execute(stmt)
+
+        # 3. Фиксируем изменения
+        db.commit()
+
+        # rowcount > 0 означает, что была удалена хотя бы одна запись
+        return True
+
+    except SQLAlchemyError as e:
+        db.rollback()
+        return False
+
+
+def delete_service(db: Session, service_id: int) -> bool:
+    """
+            Синхронно удаляет Услугу в базе данных.
+
+            :param db: Активная синхронная сессия базы данных.
+            :param service_id: Идентификатор Услуги.
+            :return: True, если услуга был успешно удален, False в противном случае.
+            """
+    # 1. Формируем запрос на удаление
+    # DELETE FROM clients WHERE id = :client_id
+    try:
+        stmt = delete(Service).where(Service.id == service_id)
 
         # 2. Выполняем запрос
         db.execute(stmt)
@@ -214,6 +242,32 @@ def create_tariff(db: Session, tariff_data: TariffCreate) -> Tariff | None:
     except SQLAlchemyError as e:
         db.rollback()
         return None
+
+
+def create_service(db: Session, service_data: ServiceCreate) -> Service | None:
+    """Добавляет новую Услугу."""
+    try:
+        db_service = Service(**service_data.model_dump())
+        db.add(db_service)
+        db.commit()
+        return db_service
+    except SQLAlchemyError as e:
+        db.rollback()
+        return None
+
+
+def get_services(db: Session, skip: int = 0, limit: int = 100) -> Sequence[Service]:
+    """Получение списка Услуг"""
+    stmt = select(Service).offset(skip).limit(limit)
+    result = db.execute(stmt)
+    return result.scalars().all()
+
+
+def get_service_by_name(db: Session, service_name: str) -> Optional[Service]:
+    """Находит Услугу по имени."""
+    stmt = select(Service).where(func.lower(Service.service_name) == func.lower(service_name))
+    result = db.execute(stmt)
+    return result.scalars().first()
 
 
 def get_tariff_by_name(db: Session, name: str) -> Optional[Tariff]:
@@ -365,6 +419,7 @@ def create_payment(db: Session, payment: PaymentCreate) -> Payment | None:
     except SQLAlchemyError as e:
         db.rollback()
         return None
+
 
 def get_payment_by_id(db: Session, payment_id: int) -> Optional[Payment]:
     """
