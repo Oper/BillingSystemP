@@ -1463,7 +1463,7 @@ class WindowEditAndViewClient(tkinter.Toplevel):
         self.btn_gen_contract = ttk.Button(buttons_frame, text="Сформировать договор", command=self.generate_contract)
         self.btn_gen_contract.pack(side='left', padx=5)
 
-        self.btn_gen_app = ttk.Button(buttons_frame, text="Сформировать заявление", command=self.generate_app)
+        self.btn_gen_app = ttk.Button(buttons_frame, text="Сформировать заявление", command=self.generate_statement)
         self.btn_gen_app.pack(side='left', padx=5)
 
         self.btn_ok = ttk.Button(buttons_frame, text="OK", command=self.on_ok)
@@ -1625,9 +1625,54 @@ class WindowEditAndViewClient(tkinter.Toplevel):
             import os
             os.startfile(result)
 
-    def generate_app(self):
-        """TODO Формирование формы заявления на подключение"""
-        pass
+    def generate_statement(self):
+        """Формирование формы заявления на подключение"""
+
+        wb = load_workbook(filename='templates/client_statement.xlsx')
+        sheet = wb['1']
+
+        sheet['O12'] = self.full_name_entry.get()
+        sheet['O13'] = self.text_address.get()
+        sheet['O14'] = self.phone_entry.get()
+
+        passport_ser_num = self.passport_ser_num.get().split()
+        if not len(passport_ser_num) == 2:
+            messagebox.showwarning("Внимание", "Заполните серию и номер паспорта по примеру: 1234 567890.")
+            return
+        passport_ser = passport_ser_num[0]
+        passport_number = passport_ser_num[1]
+
+        sheet['AH16'] = passport_ser
+        sheet['AH17'] = passport_number
+        sheet['AH18'] = f"{self.passport_data.get()} {self.passport_how.get()}"
+
+        tariff_name = self.tariff_entry.get()
+        tariff = None
+        service = None # Услуга должна называться 'Подключение'
+        for db in get_db():
+            tariff = get_tariff_by_name(db, tariff_name)
+            service = get_service_by_name(db, "Подключение")
+            break
+
+        if not tariff:
+            messagebox.showwarning("Внимание", "Тариф не найден.")
+            return
+
+        if not service:
+            messagebox.showwarning("Ошибка", "Такой услуги нет, ее необходимо добавить. Услуга должна называться 'Подключение'")
+            return
+
+        sheet['C32'] = tariff.name
+        sheet['L32'] = service.service_price
+        sheet['Z32'] = tariff.monthly_price
+
+        sheet['AG38'] = datetime.now().strftime("%d.%m.%Y")
+
+        result = self._save_report(wb, f"Заявление_ЛС-{self.personal_account_entry.get()}_{self.full_name_entry.get()}.xlsx")
+        if result:
+            # Можно, например, автоматически открыть файл после сохранения
+            import os
+            os.startfile(result)
 
     def _get_tariffs(self):
         """Получает тарифы из базы и возвращает списком"""
