@@ -1557,8 +1557,73 @@ class WindowEditAndViewClient(tkinter.Toplevel):
         self.destroy()
 
     def generate_contract(self):
-        """TODO Формирование договора с клиентом."""
-        pass
+        """Формирование договора с клиентом и сохранение готового файла."""
+
+        full_name = self.full_name_entry.get().split(" ")
+        if not len(full_name) == 3:
+            messagebox.showwarning("Внимание", "Заполните ФИО по примеру: Иванов Иван Иванович.")
+            return
+        first_name = full_name[0]
+        last_name = full_name[1]
+        other_name = full_name[2]
+
+        passport_ser_num = self.passport_ser_num.get().split(" ")
+        if not len(passport_ser_num) == 2:
+            messagebox.showwarning("Внимание", "Заполните серию и номер паспорта по примеру: 1234 567890.")
+            return
+        passport_ser = passport_ser_num[0]
+        passport_number = passport_ser_num[1]
+
+        full_address = self.text_address.get().split(" ")
+        if not len(full_address) == 2:
+            messagebox.showwarning("Внимание", "Заполните адрес по примеру: Дзержинского 116/2.")
+            return
+        street = full_address[0]
+        house = None
+        apartment = None
+        house_and_apartment = full_address[1].split("/")
+        if len(house_and_apartment) == 1:
+            house = house_and_apartment[0]
+            apartment = "Нет"
+        elif len(house_and_apartment) == 2:
+            house = house_and_apartment[0]
+            apartment = house_and_apartment[1]
+        else:
+            messagebox.showwarning("Внимание", "Заполните адрес по примеру: Дзержинского 116/2.")
+            return
+
+        phone_number = self.phone_entry.get()
+
+        wb = load_workbook(filename='templates/agreement.xlsx')
+        sheet = wb['1']
+
+        # Блок 'АБОНЕНТ'
+        sheet['AA24'] = first_name
+        sheet['AA25'] = last_name
+        sheet['AA26'] = other_name
+
+        # Блок 'Реквизиты документа удостоверяющего личность'
+        sheet['AA27'] = passport_ser
+        sheet['AA28'] = passport_number
+        sheet['AA29'] = self.passport_data.get()
+        sheet['AA30'] = self.passport_how.get()
+
+        # Блок 'Адрес абонента'
+        sheet['AA31'] = street
+        sheet['AA32'] = house
+        sheet['AA33'] = apartment
+        sheet['AA34'] = phone_number
+
+        # Блок 'Тарифный план'
+        sheet['AD38'] = self.tariff_entry.get()
+
+        sheet['AG95'] = self.full_name_entry.get()
+
+        result = self._save_report(wb, f"Договор_ЛС-{self.personal_account_entry.get()}_{first_name}.xlsx")
+        if result:
+            # Можно, например, автоматически открыть файл после сохранения
+            import os
+            os.startfile(result)
 
     def generate_app(self):
         """TODO Формирование формы заявления на подключение"""
