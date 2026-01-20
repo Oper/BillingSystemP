@@ -1649,10 +1649,12 @@ class WindowEditAndViewClient(tkinter.Toplevel):
         tariff_name = self.tariff_entry.get()
         tariff = None
         service = None # Услуга должна называться 'Подключение'
-        for db in get_db():
+        db = next(get_db())
+        try:
             tariff = get_tariff_by_name(db, tariff_name)
             service = get_service_by_name(db, "Подключение")
-            break
+        finally:
+            db.close()
 
         if not tariff:
             messagebox.showwarning("Внимание", "Тариф не найден.")
