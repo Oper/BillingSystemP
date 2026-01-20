@@ -1507,7 +1507,12 @@ class WindowReport(tkinter.Toplevel):
         total_frame = ttk.Frame(self, padding=10, relief="flat")
         total_frame.pack(side="bottom", fill="x")
 
-        if report_type == 1:
+        if report_type == 0:
+            ttk.Label(total_frame, text="Итоговая сумма задолженности:").pack(side="left")
+            ttk.Label(total_frame, textvariable=self.total_amount_var,
+                      foreground="blue").pack(side="left", padx=5)
+            ttk.Label(total_frame, text="руб.").pack(side="left")
+        elif report_type == 1:
             ttk.Label(total_frame, text="Итоговая сумма за период:").pack(side="left")
             ttk.Label(total_frame, textvariable=self.total_amount_var,
                       foreground="blue").pack(side="left", padx=5)
@@ -1585,10 +1590,12 @@ class WindowReport(tkinter.Toplevel):
         self._display_payments(payments)
 
     def _display_clients(self, clients):
-        """Отображает список объектов клиентов в Treeview."""
+        """Отображает список должников (имеющих отрицательный баланс)."""
         # Очистка Treeview
         for item in self.tree_frame.get_children():
             self.tree_frame.delete(item)
+
+        total_sum = 0.0
 
         for client in clients:
             self.tree_frame.insert("", "end", values=(
@@ -1598,6 +1605,9 @@ class WindowReport(tkinter.Toplevel):
                 f"{client.balance:.2f}",  # Форматируем баланс
                 client.status.value,
             ))
+            total_sum += float(client.balance)
+
+        self.total_amount_var.set(f"{total_sum:,.2f}".replace(",", " "))
 
     def _display_payments(self, payments):
         """Отображает список платежей и обновляет итог."""
