@@ -1559,7 +1559,7 @@ class WindowEditAndViewClient(tkinter.Toplevel):
     def generate_contract(self):
         """Формирование договора с клиентом и сохранение готового файла."""
 
-        full_name = self.full_name_entry.get().split(" ")
+        full_name = self.full_name_entry.get().split()
         if not len(full_name) == 3:
             messagebox.showwarning("Внимание", "Заполните ФИО по примеру: Иванов Иван Иванович.")
             return
@@ -1567,14 +1567,14 @@ class WindowEditAndViewClient(tkinter.Toplevel):
         last_name = full_name[1]
         other_name = full_name[2]
 
-        passport_ser_num = self.passport_ser_num.get().split(" ")
+        passport_ser_num = self.passport_ser_num.get().split()
         if not len(passport_ser_num) == 2:
             messagebox.showwarning("Внимание", "Заполните серию и номер паспорта по примеру: 1234 567890.")
             return
         passport_ser = passport_ser_num[0]
         passport_number = passport_ser_num[1]
 
-        full_address = self.text_address.get().split(" ")
+        full_address = self.text_address.get().split()
         if not len(full_address) == 2:
             messagebox.showwarning("Внимание", "Заполните адрес по примеру: Дзержинского 116/2.")
             return
