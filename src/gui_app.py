@@ -11,7 +11,6 @@ from tkinter.constants import END
 
 from pydantic import ValidationError
 
-from models.accruals import AccrualCreate
 from src.db.models import StatusClientEnum
 from src.db.crud import delete_tariff, delete_client, get_client_by_pa, update_client, create_payment, create_client, \
     search_clients, get_clients, get_tariffs, create_tariff, get_tariff_by_name, set_client_activity, \
@@ -24,6 +23,7 @@ from src.models.clients import ClientUpdate, ClientForPayments, ClientCard, Clie
 from src.models.payments import PaymentCreate
 from src.models.tariffs import TariffCreate
 from src.models.services import ServiceCreate
+from src.models.accruals import AccrualCreate
 
 
 class BillingSysemApp(tkinter.Tk):
@@ -656,7 +656,7 @@ class BillingSysemApp(tkinter.Tk):
                     connection_date=client.connection_date,
                     passport=client.passport,
                     status=client.status,
-                    status_date=client.status_date,
+                    status_date=client.status_date if client.status_date else datetime.now(),
                 )
                 break
         except Exception as e:
