@@ -123,7 +123,6 @@ class BillingSysemApp(tkinter.Tk):
 
         ttk.Button(btns_subframe, text="Внести оплату", command=self._add_payment).pack(side="left", padx=5)
 
-
         ttk.Separator(btns_subframe, orient="vertical").pack(side="left", fill="y", padx=10)
 
         ttk.Button(btns_subframe, text="Добавить", command=self._add_client).pack(side="left", padx=5)
@@ -677,12 +676,16 @@ class BillingSysemApp(tkinter.Tk):
 
             for client in clients:
                 # 1. Проверяем, было ли уже начисление (чтобы не начислить дважды за месяц)
-                accrual_month = client.accrual_date.month if client.accrual_date else None
+                accrual_month = client.accrual_date.month if client.accrual_date else 0
 
-                if accrual_month is None or accrual_month != today.month:
+                if accrual_month == 0 or accrual_month != today.month:
                     # Начисление оплаты клиенту, если клиент имеет статус Подключен
+                    status_date_month = client.status_date.month if client.status_date else 0
+                    status_date_day = client.status_date.day if client.status_date else 0
+                    status_date_year = client.status_date.year if client.status_date else 0
                     if client.status == StatusClientEnum.CONNECTING:
-                        if client.status_date.month != today.month:
+
+                        if status_date_month != today.month:
                             conn_date = client.connection_date
 
                             # Если подключение было в ПРОШЛОМ месяце или раньше
@@ -704,9 +707,8 @@ class BillingSysemApp(tkinter.Tk):
                                 if apply_daily_charge(db, client.id, actual_days):
                                     client.accrual_date = today
                                     create_accrual_daily(db, client.id, actual_days, today)
-                        elif client.status_date.month == today.month:
-                            status_date = client.status_date
-                            _, days_in_month = calendar.monthrange(status_date.year, status_date.month)
+                        elif status_date_month == today.month:
+                            _, days_in_month = calendar.monthrange(status_date_year, status_date_month)
 
                             actual_days = days_in_month - conn_date.day + 1
 
@@ -716,15 +718,12 @@ class BillingSysemApp(tkinter.Tk):
 
                     # Начисление оплаты клиенту, если клиент в текущем месяце был приостановлен
                     elif client.status == StatusClientEnum.PAUSE:
-                        status_date = client.status_date
-                        if status_date.month == today.month and status_date.year == today.year:
-                            actual_days = status_date.day - 1
+                        if status_date_month == today.month and status_date_year == today.year:
+                            actual_days = status_date_day - 1
 
                             if apply_daily_charge(db, client.id, actual_days):
                                 client.accrual_date = today
                                 create_accrual_daily(db, client.id, actual_days, today)
-
-
 
             db.commit()  # Фиксируем все начисления одной транзакцией
 
@@ -1698,7 +1697,7 @@ class WindowEditAndViewClient(tkinter.Toplevel):
 
         tariff_name = self.tariff_entry.get()
         tariff = None
-        service = None # Услуга должна называться 'Подключение'
+        service = None  # Услуга должна называться 'Подключение'
         db = next(get_db())
         try:
             tariff = get_tariff_by_name(db, tariff_name)
@@ -1711,7 +1710,8 @@ class WindowEditAndViewClient(tkinter.Toplevel):
             return
 
         if not service:
-            messagebox.showwarning("Ошибка", "Такой услуги нет, ее необходимо добавить. Услуга должна называться 'Подключение'")
+            messagebox.showwarning("Ошибка",
+                                   "Такой услуги нет, ее необходимо добавить. Услуга должна называться 'Подключение'")
             return
 
         sheet['C32'] = tariff.name
@@ -1720,7 +1720,8 @@ class WindowEditAndViewClient(tkinter.Toplevel):
 
         sheet['AG38'] = datetime.now().strftime("%d.%m.%Y")
 
-        result = self._save_report(wb, f"Заявление_ЛС-{self.personal_account_entry.get()}_{self.full_name_entry.get()}.xlsx")
+        result = self._save_report(wb,
+                                   f"Заявление_ЛС-{self.personal_account_entry.get()}_{self.full_name_entry.get()}.xlsx")
         if result:
             # Можно, например, автоматически открыть файл после сохранения
             import os
