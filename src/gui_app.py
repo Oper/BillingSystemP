@@ -11,13 +11,14 @@ from tkinter.constants import END
 
 from pydantic import ValidationError
 
+from models.accruals import AccrualCreate
 from src.db.models import StatusClientEnum
 from src.db.crud import delete_tariff, delete_client, get_client_by_pa, update_client, create_payment, create_client, \
     search_clients, get_clients, get_tariffs, create_tariff, get_tariff_by_name, set_client_activity, \
     get_payments_by_client, apply_monthly_charge, apply_daily_charge, get_accruals_by_client, create_accrual_daily, \
     create_accrual_monthly, get_debtors_report, set_client_status, get_last_payment_by_client, clear_db_clients, \
     bulk_create_clients, get_last_accrual_by_client, get_payments_in_range, get_payment_by_id, get_client_by_id, \
-    create_service, get_services, get_service_by_name, delete_service
+    create_service, get_services, get_service_by_name, delete_service, create_accrual
 from src.db.database import get_db, init_db
 from src.models.clients import ClientUpdate, ClientForPayments, ClientCard, ClientCreate, ClientBase
 from src.models.payments import PaymentCreate
@@ -676,9 +677,9 @@ class BillingSysemApp(tkinter.Tk):
 
             for client in clients:
                 # 1. Проверяем, было ли уже начисление (чтобы не начислить дважды за месяц)
-                last_accrual = get_last_accrual_by_client(db, client.id)
+                accrual_month = client.accrual_date.month if client.accrual_date else None
 
-                if last_accrual is None:
+                if accrual_month is None or accrual_month != today.month:
                     # Начисление оплаты клиенту, если клиент имеет статус Подключен
                     if client.status == StatusClientEnum.CONNECTING:
                         if client.status_date.month != today.month:
@@ -1351,7 +1352,7 @@ class WindowEditAndViewClient(tkinter.Toplevel):
         super().__init__(parent)
 
         self.title("Карточка абонента")
-        self.geometry("650x750")
+        self.geometry("650x800")
         self.resizable(False, False)
 
         main_frame = ttk.Frame(self, padding=20)
@@ -1410,11 +1411,11 @@ class WindowEditAndViewClient(tkinter.Toplevel):
         ttk.Label(status_set_subframe, text="Дата изменения статуса:").pack(side='left', padx=5)
 
         self.status_date_entry = DateEntry(status_set_subframe, date_pattern="dd.mm.yyyy")
-        self.status_date_entry.pack(side='left', padx=5)
+        self.status_date_entry.pack(side='left', padx=5, )
         current_row += 1
 
         ttk.Label(main_frame, text="Дата подключения:").grid(row=current_row, column=0, sticky='w', padx=5, pady=5)
-        self.connect_date_entry = DateEntry(main_frame, date_pattern="dd.mm.yyyy")
+        self.connect_date_entry = DateEntry(main_frame, date_pattern="dd.mm.yyyy", width=20)
         self.connect_date_entry.grid(row=current_row, column=1, sticky='w', padx=5, pady=5)  # sticky='w'
         current_row += 1
 
@@ -1464,6 +1465,15 @@ class WindowEditAndViewClient(tkinter.Toplevel):
         scrollbar.grid(row=0, column=1, sticky='ns')
 
         current_row += 1
+
+        accruals_set_subframe = (ttk.Frame(accruals_frame))
+        accruals_set_subframe.grid(row=current_row, column=0, sticky='we', padx=5, pady=5)
+        ttk.Label(accruals_set_subframe, text="Начислить услугу абоненту:").pack(side='left')
+        self.services_list = self._get_all_services()
+        self.combo_services = ttk.Combobox(accruals_set_subframe, state='readonly', values=self.services_list)
+        self.combo_services.current(0)
+        self.combo_services.pack(side='left', fill='x', padx=5, pady=5)
+        ttk.Button(accruals_set_subframe, text="Начислить", command=self._accrual_service).pack(side='left')
 
         payments_frame = ttk.LabelFrame(main_frame, text="Список платежей")
         payments_frame.grid(row=current_row, column=0, columnspan=2, sticky='we', padx=5, pady=10)
@@ -1736,6 +1746,60 @@ class WindowEditAndViewClient(tkinter.Toplevel):
                 "Ошибка!",
                 f"Возникла ошибка!\nПодробности: \n{e}"
             )
+
+    def _get_all_services(self):
+        """Получает услуги из базы и возвращает списком"""
+        try:
+            list_services = []
+            for db in get_db():
+                services = get_services(db)
+                if services:
+
+                    for service in services:
+                        list_services.append(service.service_name)
+                    return list_services
+                else:
+                    list_services[0] = "Нет"
+                break
+            return list_services
+        except Exception as e:
+            messagebox.showerror(
+                "Ошибка!",
+                f"Возникла ошибка!\nПодробности: \n{e}"
+            )
+
+    def _accrual_service(self):
+        """Начисляет и списывает с баланса выбранную услугу"""
+        db = next(get_db())
+        try:
+            service = get_service_by_name(db, self.combo_services.get())
+            client = get_client_by_pa(db, int(self.personal_account_entry.get()))
+            if service and client:
+                current_accrual = create_accrual(
+                    db,
+                    AccrualCreate(
+                        amount=float(service.service_price),
+                        accrual_date=datetime.today(),
+                        client_id=int(client.id),
+                    )
+                )
+                if current_accrual:
+                    update_client(
+                        db,
+                        client.id,
+                        ClientUpdate(
+                            balance=float(client.balance - service.service_price),
+                        )
+                    )
+                    messagebox.showinfo(
+                        "Успешно!",
+                        f"Услуга - {service.service_name} на сумму {service.service_price} успешно начислена абоненту {client.full_name}!"
+                    )
+
+        except Exception as e:
+            messagebox.showerror("Ошибка!", f"Ошибка начисления оплаты!\n{e}")
+        finally:
+            db.close()
 
     def _get_receipt_client(self, event):
         """
