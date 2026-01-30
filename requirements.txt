@@ -1,3 +1,4 @@
+pandas
 openpyxl
 annotated-types==0.7.0
 future==1.0.0

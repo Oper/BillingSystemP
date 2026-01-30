@@ -1,5 +1,6 @@
 import calendar
 import tkinter
+import pandas as pd
 from pathlib import Path
 from openpyxl.reader.excel import load_workbook
 
@@ -1869,7 +1870,8 @@ class WindowReport(tkinter.Toplevel):
 
         total_frame = ttk.Frame(self, padding=10, relief="flat")
         total_frame.pack(side="bottom", fill="x")
-
+        ttk.Button(total_frame, text="Выгрузить в Excel",
+                   command=self._export_to_excel).pack(side="right", padx=10)
         if report_type == 0:
             ttk.Label(total_frame, text="Итоговая сумма задолженности:").pack(side="left")
             ttk.Label(total_frame, textvariable=self.total_amount_var,
@@ -2000,6 +2002,45 @@ class WindowReport(tkinter.Toplevel):
             break
 
         self.total_amount_var.set(f"{total_sum:,.2f}".replace(",", " "))
+
+    def _export_to_excel(self):
+        # 1. Сбор данных из Treeview
+        data = []
+        columns = [self.tree_frame.heading(col)["text"] for col in self.tree_frame["columns"]]
+
+        for item in self.tree_frame.get_children():
+            data.append(self.tree_frame.item(item)["values"])
+
+        if not data:
+            messagebox.showwarning("Внимание", "Нет данных для выгрузки")
+            return
+
+        # 2. Выбор пути сохранения
+        file_path = filedialog.asksaveasfilename(
+            defaultextension=".xlsx",
+            filetypes=[("Excel files", "*.xlsx"), ("All files", "*.*")],
+            title="Сохранить отчет"
+        )
+
+        if file_path:
+            try:
+                df = pd.DataFrame(data, columns=columns)
+                # Добавляем строку с итогом в конец файла
+                total_label = "Итоговая сумма:"
+                total_val = self.total_amount_var.get()
+
+                # Создаем Excel-файл
+                with pd.ExcelWriter(file_path, engine='openpyxl') as writer:
+                    df.to_excel(writer, index=False, sheet_name='Отчет')
+
+                    # Небольшое форматирование (опционально)
+                    ws = writer.sheets['Отчет']
+                    ws.append([])  # пустая строка
+                    ws.append([total_label, total_val])
+
+                messagebox.showinfo("Успех", f"Отчет успешно сохранен в:\n{file_path}")
+            except Exception as e:
+                messagebox.showerror("Ошибка", f"Не удалось сохранить файл: {e}")
 
 
 if __name__ == "__main__":
