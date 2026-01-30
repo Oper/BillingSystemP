@@ -452,11 +452,16 @@ class BillingSysemApp(tkinter.Tk):
             try:
                 for db in get_db():
                     client = get_client_by_pa(db, select_client[0])
-                    delete_client(db, int(client.id))
-                    messagebox.showinfo(
-                        "Успех",
-                        f"Клиент {client.full_name} (ID: {client.id}) успешно удален!"
+                    delete_yes = messagebox.askyesno(
+                        "Внимание!",
+                        f"Вы действительно хотите удалить абонента {client.full_name}, ЛС: {client.personal_account}?"
                     )
+                    if delete_yes:
+                        delete_client(db, int(client.id))
+                        messagebox.showinfo(
+                            "Успех",
+                            f"Клиент {client.full_name} (ID: {client.id}) успешно удален!"
+                        )
                     break
             except Exception as e:
                 messagebox.showerror("Ошибка удаления", f"Не удалось удалить клиента:\n{e}")
