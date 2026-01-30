@@ -119,19 +119,13 @@ class BillingSysemApp(tkinter.Tk):
         btns_subframe = ttk.Frame(self.group_operations_frame)
         btns_subframe.pack(fill="x", padx=5, pady=5)
 
-        ttk.Button(btns_subframe, text="Оплата", command=self._add_payment).pack(side="left", padx=5)
+        ttk.Button(btns_subframe, text="Внести оплату", command=self._add_payment).pack(side="left", padx=5)
 
-        self.status_box = ttk.Combobox(btns_subframe, width=15, state="readonly",
-                                       values=["Подключен", "Отключен", "Приостановлен"])
-        self.status_box.pack(side="left", padx=5)
-        self.status_box.current(0)
-
-        ttk.Button(btns_subframe, text="Статус", command=self._set_client_satus).pack(side="left", padx=5)
 
         ttk.Separator(btns_subframe, orient="vertical").pack(side="left", fill="y", padx=10)
 
         ttk.Button(btns_subframe, text="Добавить", command=self._add_client).pack(side="left", padx=5)
-        ttk.Button(btns_subframe, text="Изменить", command=self._edit_client).pack(side="left", padx=5)
+        ttk.Button(btns_subframe, text="Изменить", command=self._open_edit_window).pack(side="left", padx=5)
         ttk.Button(btns_subframe, text="Удалить", command=self._delete_client).pack(side="left", padx=5)
 
         self.client_tree.bind("<Double-Button-1>", self._open_edit_window)
@@ -625,11 +619,17 @@ class BillingSysemApp(tkinter.Tk):
 
             self._search_clients()
 
-    def _open_edit_window(self, event):
+    def _open_edit_window(self, event=None):
         """"""
-        item_id = self.client_tree.identify_row(event.y)
+        if event:
+            item_id = self.client_tree.identify_row(event.y)
+        else:
+            selection = self.client_tree.selection()
+            item_id = selection[0] if selection else None
+
         if not item_id:
             return
+
         item_data = self.client_tree.item(item_id)
         values = item_data['values']
 
