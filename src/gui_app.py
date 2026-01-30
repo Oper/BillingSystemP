@@ -654,6 +654,7 @@ class BillingSysemApp(tkinter.Tk):
                     connection_date=client.connection_date,
                     passport=client.passport,
                     status=client.status,
+                    status_date=client.status_date,
                 )
                 break
         except Exception as e:
@@ -1381,7 +1382,6 @@ class WindowEditAndViewClient(tkinter.Toplevel):
 
         ttk.Label(main_frame, text="Тариф:").grid(row=current_row, column=0, sticky='w', padx=5, pady=5)
 
-        # Создаем подфрейм для тарифа и баланса, чтобы они не ломали сетку основного окна
         tariff_balance_subframe = ttk.Frame(main_frame)
         tariff_balance_subframe.grid(row=current_row, column=1, sticky='we')
 
@@ -1396,12 +1396,20 @@ class WindowEditAndViewClient(tkinter.Toplevel):
         current_row += 1
 
         ttk.Label(main_frame, text="Статус:").grid(row=current_row, column=0, sticky='w', padx=5, pady=5)
+
+        status_set_subframe = ttk.Frame(main_frame)
+        status_set_subframe.grid(row=current_row, column=1, sticky='we')
+
         self.status_list = [StatusClientEnum.CONNECTING.value, StatusClientEnum.PAUSE.value,
                             StatusClientEnum.DISCONNECTING.value]
-        self.combo_status = ttk.Combobox(main_frame, state="readonly",
+        self.combo_status = ttk.Combobox(status_set_subframe, state="readonly",
                                          values=self.status_list)
-        self.combo_status.grid(row=current_row, column=1, sticky='w', padx=5,
-                               pady=5)
+        self.combo_status.pack(side='left', padx=5)
+
+        ttk.Label(status_set_subframe, text="Дата изменения статуса:").pack(side='left', padx=5)
+
+        self.status_date_entry = DateEntry(status_set_subframe, date_pattern="dd.mm.yyyy")
+        self.status_date_entry.pack(side='left', padx=5)
         current_row += 1
 
         ttk.Label(main_frame, text="Дата подключения:").grid(row=current_row, column=0, sticky='w', padx=5, pady=5)
@@ -1518,6 +1526,8 @@ class WindowEditAndViewClient(tkinter.Toplevel):
         self.tariff_entry.current(self._get_tariffs().index(client.tariff))
         self.balance_entry.insert(0, float(client.balance))
         self.combo_status.current(self.status_list.index(client.status))
+        if client.status_date:
+            self.status_date_entry.set_date(client.status_date.date())
         self.connect_date_entry.set_date(client.connection_date.date())
         self.passport_ser_num.insert(0, passport_client.get("ser_num", "Нет"))
         self.passport_data.insert(0, passport_client.get("date", "Нет"))
@@ -1567,7 +1577,7 @@ class WindowEditAndViewClient(tkinter.Toplevel):
             passport=passport,
             status=self.combo_status.get(),
             connection_date=self.connect_date_entry.get_date(),
-
+            status_date=self.status_date_entry.get_date(),
         )
         try:
             for db in get_db():

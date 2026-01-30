@@ -31,6 +31,7 @@ class ClientCard(ClientBase):
     connection_date: datetime
     passport: Optional[dict] = None
     status: Optional[StatusClientEnum] = None
+    status_date: datetime = None
 
 
 class ClientUpdate(ClientBase):
@@ -44,9 +45,8 @@ class ClientUpdate(ClientBase):
     is_active: Optional[int] = None
     passport: Optional[dict] = None
     status: Optional[StatusClientEnum] = None
-    status_date: Optional[datetime] = None
     connection_date: Optional[datetime] = None
-
+    status_date: Optional[datetime] = None
 
 class ClientInDB(ClientBase):
     """Модель данных клиента, как они хранятся в БД (с ID и датами)."""
