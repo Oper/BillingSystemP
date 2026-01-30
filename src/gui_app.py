@@ -674,22 +674,32 @@ class BillingSysemApp(tkinter.Tk):
                 if last_accrual is None:
                     # Начисление оплаты клиенту, если клиент имеет статус Подключен
                     if client.status == StatusClientEnum.CONNECTING:
-                        conn_date = client.connection_date
+                        if client.status_date.month != today.month:
+                            conn_date = client.connection_date
 
-                        # Если подключение было в ПРОШЛОМ месяце или раньше
-                        if conn_date.month != today.month or conn_date.year != today.year:
-                            if apply_monthly_charge(db, client.id):
-                                client.accrual_date = today
-                                tariff = get_tariff_by_name(db, client.tariff)
-                                create_accrual_monthly(db, client, tariff, today)
+                            # Если подключение было в ПРОШЛОМ месяце или раньше
+                            if conn_date.month != today.month or conn_date.year != today.year:
+                                if apply_monthly_charge(db, client.id):
+                                    client.accrual_date = today
+                                    tariff = get_tariff_by_name(db, client.tariff)
+                                    create_accrual_monthly(db, client, tariff, today)
 
-                        # Если подключение в ЭТОМ месяце (пропорциональное начисление)
-                        else:
-                            # Узнаем сколько всего дней в месяце (для 2026 года)
-                            _, days_in_month = calendar.monthrange(conn_date.year, conn_date.month)
+                            # Если подключение в ЭТОМ месяце (пропорциональное начисление)
+                            else:
+                                # Узнаем сколько всего дней в месяце (для 2026 года)
+                                _, days_in_month = calendar.monthrange(conn_date.year, conn_date.month)
 
-                            # Считаем количество дней пользования: (Всего - ДеньПодключения + 1)
-                            # Если подключился 11-го, то (31 - 11 + 1) = 21 день владения
+                                # Считаем количество дней пользования: (Всего - ДеньПодключения + 1)
+                                # Если подключился 11-го, то (31 - 11 + 1) = 21 день владения
+                                actual_days = days_in_month - conn_date.day + 1
+
+                                if apply_daily_charge(db, client.id, actual_days):
+                                    client.accrual_date = today
+                                    create_accrual_daily(db, client.id, actual_days, today)
+                        elif client.status_date.month == today.month:
+                            status_date = client.status_date
+                            _, days_in_month = calendar.monthrange(status_date.year, status_date.month)
+
                             actual_days = days_in_month - conn_date.day + 1
 
                             if apply_daily_charge(db, client.id, actual_days):
