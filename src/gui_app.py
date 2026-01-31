@@ -499,7 +499,10 @@ class BillingSysemApp(tkinter.Tk):
 
 
             except Exception as e:
-                print(e)
+                messagebox.showerror(
+                    "Ошибка!",
+                    f"Произошла ошибка\nПодробнее:{e}"
+                )
 
     def _delete_tariff(self):
         """Обрабатывает нажатие кнопки 'Удалить Тариф'."""
