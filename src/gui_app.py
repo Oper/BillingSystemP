@@ -675,21 +675,25 @@ class BillingSysemApp(tkinter.Tk):
             today = self.date_todey
 
             for client in clients:
-                # 1. Проверяем, было ли уже начисление (чтобы не начислить дважды за месяц)
+                # Получаем дату начисления, если было начисление (иначе получим 0).
                 accrual_month = client.accrual_date.month if client.accrual_date else 0
 
+                # Получаем дату смены статуса, если статус меняли (если статус не менялся, получаем 0).
+                status_date_month = client.status_date.month if client.status_date else 0
+                status_date_day = client.status_date.day if client.status_date else 0
+                status_date_year = client.status_date.year if client.status_date else 0
+                conn_date = client.connection_date
+
                 if accrual_month == 0 or accrual_month != today.month:
+
                     # Начисление оплаты клиенту, если клиент имеет статус Подключен
-                    status_date_month = client.status_date.month if client.status_date else 0
-                    status_date_day = client.status_date.day if client.status_date else 0
-                    status_date_year = client.status_date.year if client.status_date else 0
                     if client.status == StatusClientEnum.CONNECTING:
 
+                        # Проверяем, когда был получен статус
                         if status_date_month != today.month:
-                            conn_date = client.connection_date
 
                             # Если подключение было в ПРОШЛОМ месяце или раньше
-                            if conn_date.month != today.month or conn_date.year != today.year:
+                            if conn_date.month != today.month and conn_date.year != today.year:
                                 if apply_monthly_charge(db, client.id):
                                     client.accrual_date = today
                                     tariff = get_tariff_by_name(db, client.tariff)
@@ -707,7 +711,9 @@ class BillingSysemApp(tkinter.Tk):
                                 if apply_daily_charge(db, client.id, actual_days):
                                     client.accrual_date = today
                                     create_accrual_daily(db, client.id, actual_days, today)
-                        elif status_date_month == today.month:
+
+                        # Если статус абонента изменен в этом месяце и в этом году
+                        elif status_date_month == today.month and status_date_year == today.year:
                             _, days_in_month = calendar.monthrange(status_date_year, status_date_month)
 
                             actual_days = days_in_month - conn_date.day + 1
