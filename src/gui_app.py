@@ -1,4 +1,5 @@
 import calendar
+import math
 import tkinter
 import pandas as pd
 from pathlib import Path
@@ -804,8 +805,8 @@ class BillingSysemApp(tkinter.Tk):
                             full_name = client_full_name[0].capitalize()
                         accrual_date_month = client.accrual_date.month if client.accrual_date else 0
                         if accrual_date_month == current_month and client.status == StatusClientEnum.CONNECTING:
-                            last_accrual_client = get_last_accrual_by_client(db, client.id)
-                            amount += last_accrual_client.amount
+                            if client.balance < 0:
+                                amount = math.fabs(client.balance)
                         record = f"{personal_account};{full_name};;ТВ;;{amount:.2f}\n"
                         if amount != 0:
                             file.write(record)
