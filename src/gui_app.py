@@ -790,24 +790,31 @@ class BillingSysemApp(tkinter.Tk):
 
         for db in get_db():
             clients = get_clients(db)
-            break
 
-        if clients:
-            with file_path.open(mode="w", encoding="utf-8") as file:
-                for client in clients:
-                    personal_account = client.personal_account
-                    client_full_name = client.full_name.split()
-                    full_name = None
-                    if len(client_full_name) == 3:
-                        full_name = f"{client_full_name[0].capitalize()} {client_full_name[1][0].upper()}{client_full_name[2][0].upper()}"
-                    else:
-                        full_name = client_full_name[0].capitalize()
-                    amount = self._get_last_payment_client(client.id, current_month)
-                    record = f"{personal_account};{full_name};;ТВ;;{amount:.2f}\n"
-                    if amount != 0:
-                        file.write(record)
-                    else:
-                        continue
+            if clients:
+                with file_path.open(mode="w", encoding="utf-8") as file:
+                    for client in clients:
+                        personal_account = client.personal_account
+                        client_full_name = client.full_name.split()
+                        full_name = None
+                        amount = 0
+                        if len(client_full_name) == 3:
+                            full_name = f"{client_full_name[0].capitalize()} {client_full_name[1][0].upper()}{client_full_name[2][0].upper()}"
+                        else:
+                            full_name = client_full_name[0].capitalize()
+                        accrual_date_month = client.accrual_date.month if client.accrual_date else 0
+                        if accrual_date_month == current_month and client.status == StatusClientEnum.CONNECTING:
+                            last_accrual_client = get_last_accrual_by_client(db, client.id)
+                            amount += last_accrual_client.amount
+                        record = f"{personal_account};{full_name};;ТВ;;{amount:.2f}\n"
+                        if amount != 0:
+                            file.write(record)
+                        else:
+                            continue
+                    if file_path:
+                        import os
+                        os.startfile(file_path)
+            break
 
     def _set_report_for_bank(self):
         """Метод для загрузки данных с банка"""
