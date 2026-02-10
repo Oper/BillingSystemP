@@ -793,7 +793,7 @@ class BillingSysemApp(tkinter.Tk):
             clients = get_clients(db)
 
             if clients:
-                with file_path.open(mode="w", encoding="utf-8") as file:
+                with file_path.open(mode="w", encoding="cp1251") as file:
                     for client in clients:
                         personal_account = client.personal_account
                         client_full_name = client.full_name.split()
