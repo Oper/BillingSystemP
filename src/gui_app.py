@@ -116,8 +116,11 @@ class BillingSysemApp(tkinter.Tk):
             width = 150 if col_id in ["fio", "address"] else 100
             self.client_tree.column(col_id, width=width, anchor="center" if width == 100 else "w")
 
-        self.group_operations_frame = ttk.LabelFrame(frame, text="Управление")
-        self.group_operations_frame.pack(fill="x", padx=10, pady=10)
+        footer_container = ttk.Frame(frame)
+        footer_container.pack(fill="x", padx=10, pady=5)
+
+        self.group_operations_frame = ttk.LabelFrame(footer_container, text="Управление")
+        self.group_operations_frame.pack(side="left", fill="both", expand=True, padx=(0, 5))
 
         btns_subframe = ttk.Frame(self.group_operations_frame)
         btns_subframe.pack(fill="x", padx=5, pady=5)
@@ -129,6 +132,18 @@ class BillingSysemApp(tkinter.Tk):
         ttk.Button(btns_subframe, text="Добавить", command=self._add_client).pack(side="left", padx=5)
         ttk.Button(btns_subframe, text="Изменить", command=self._open_edit_window).pack(side="left", padx=5)
         ttk.Button(btns_subframe, text="Удалить", command=self._delete_client).pack(side="left", padx=5)
+
+        self.group_stats_frame = ttk.LabelFrame(footer_container, text="Количество абонентов:")
+        self.group_stats_frame.pack(side="right", fill="both", expand=True, padx=(0, 5))
+
+        self.lbl_total = ttk.Label(self.group_stats_frame, text="Всего: 0")
+        self.lbl_total.pack(fill="x", side="top", padx=5, pady=0.1)
+
+        self.lbl_disabled = ttk.Label(self.group_stats_frame, text="Отключенных: 0")
+        self.lbl_disabled.pack(fill="x", side="top", padx=5, pady=0.1)
+
+        self.lbl_pause = ttk.Label(self.group_stats_frame, text="Приостановленных: 0")
+        self.lbl_pause.pack(fill="x", side="top", padx=5, pady=0.1)
 
         self.client_tree.bind("<Double-Button-1>", self._open_edit_window)
 
@@ -354,11 +369,16 @@ class BillingSysemApp(tkinter.Tk):
         # Очистка Treeview
         for item in self.client_tree.get_children():
             self.client_tree.delete(item)
-
+        count_connecting_clients = 0
+        count_disconnecting_clients = 0
+        count_paused_clients = 0
         for client in clients:
-            # Преобразуем объект SQLAlchemy в удобный кортеж
-            is_active_status = "Да" if client.is_active == 1 else "Нет"
-
+            if client.status is StatusClientEnum.CONNECTING:
+                count_connecting_clients += 1
+            elif client.status is StatusClientEnum.DISCONNECTING:
+                count_disconnecting_clients += 1
+            elif client.status is StatusClientEnum.PAUSE:
+                count_paused_clients += 1
             self.client_tree.insert("", "end", values=(
                 client.personal_account,
                 client.full_name,
@@ -367,6 +387,9 @@ class BillingSysemApp(tkinter.Tk):
                 f"{client.balance:.2f}",  # Форматируем баланс
                 client.status.value,
             ))
+        self.lbl_total.configure(text=f"Всего: {count_connecting_clients}")
+        self.lbl_disabled.configure(text=f"Отключенных: {count_disconnecting_clients}")
+        self.lbl_pause.configure(text=f"Приостановленных: {count_paused_clients}")
 
     def _display_tariffs(self, tariffs):
         """Отображает список объектов тарифов в Treeview."""
@@ -558,7 +581,6 @@ class BillingSysemApp(tkinter.Tk):
 
     def _add_payment(self):
         """Создание окна для внесения оплаты."""
-        # TODO
         client_id = None
         select_client = self.client_tree.item(self.client_tree.focus()).get('values')
         if not select_client:
@@ -1484,12 +1506,14 @@ class WindowEditAndViewClient(tkinter.Toplevel):
 
         accruals_set_subframe = (ttk.Frame(accruals_frame))
         accruals_set_subframe.grid(row=current_row, column=0, sticky='we', padx=5, pady=5)
-        ttk.Label(accruals_set_subframe, text="Начислить услугу абоненту:").pack(side='left')
+        ttk.Label(accruals_set_subframe, text="Начислить абоненту:").pack(side='left')
         self.services_list = self._get_all_services()
         self.combo_services = ttk.Combobox(accruals_set_subframe, state='readonly', values=self.services_list)
         self.combo_services.current(0)
         self.combo_services.pack(side='left', fill='x', padx=5, pady=5)
         ttk.Button(accruals_set_subframe, text="Начислить", command=self._accrual_service).pack(side='left')
+
+        ttk.Button(accruals_set_subframe, text="Удалить начисление").pack(side='right')
 
         payments_frame = ttk.LabelFrame(main_frame, text="Список платежей")
         payments_frame.grid(row=current_row, column=0, columnspan=2, sticky='we', padx=5, pady=10)
@@ -1871,7 +1895,7 @@ class WindowEditAndViewClient(tkinter.Toplevel):
 
         result = self._save_report(wb, f"Квитанция_ЛС-{personal_account}_ИД-{payment_id}_месяц-{payment_month}.xlsx")
         if result:
-            # Можно, например, автоматически открыть файл после сохранения
+            # Открыть файл после сохранения
             import os
             os.startfile(result)
 
