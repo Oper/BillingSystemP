@@ -1390,177 +1390,25 @@ class WindowEditAndViewClient(tkinter.Toplevel):
         super().__init__(parent)
 
         self.title("Карточка абонента")
-        self.geometry("650x800")
+        self.geometry("650x450")
         self.resizable(False, False)
 
-        main_frame = ttk.Frame(self, padding=20)
-        main_frame.pack(fill='both', expand=True)
+        notebook = ttk.Notebook(self)
+        notebook.pack(pady=10, padx=10, expand=True, fill="both")
 
-        main_frame.columnconfigure(1, weight=1)
+        client_data_frame = ttk.Frame(notebook)
+        accruals_frame = ttk.Frame(notebook)
+        payments_frame = ttk.Frame(notebook)
 
-        current_row = 0
+        notebook.add(client_data_frame, text="Данные абонента")
+        notebook.add(accruals_frame, text="Начисления абонента")
+        notebook.add(payments_frame, text="Платежи абонента")
+        # main_frame = ttk.Frame(self, padding=20)
+        # main_frame.pack(fill='both', expand=True)
 
-        ttk.Label(main_frame, text="Лицевой счет:").grid(row=current_row, column=0, sticky='w', padx=5, pady=5)
-        self.personal_account_entry = ttk.Entry(main_frame)
-        self.personal_account_entry.grid(row=current_row, column=1, sticky='we', padx=5, pady=5)
-        current_row += 1
-
-        ttk.Label(main_frame, text="ФИО:").grid(row=current_row, column=0, sticky='w', padx=5, pady=5)
-        self.full_name_entry = ttk.Entry(main_frame)
-        self.full_name_entry.grid(row=current_row, column=1, sticky='we', padx=5, pady=5)
-        current_row += 1
-
-        ttk.Label(main_frame, text="Адрес:").grid(row=current_row, column=0, sticky='nw', padx=5, pady=5)
-        self.text_address = tkinter.Entry(main_frame, width=40)
-        self.text_address.grid(row=current_row, column=1, sticky='we', padx=5, pady=5)
-        current_row += 1
-
-        ttk.Label(main_frame, text="Телефон:").grid(row=current_row, column=0, sticky='nw', padx=5, pady=5)
-        self.phone_entry = ttk.Entry(main_frame, width=40)
-        self.phone_entry.grid(row=current_row, column=1, sticky='we', padx=5, pady=5)
-        current_row += 1
-
-        ttk.Label(main_frame, text="Тариф:").grid(row=current_row, column=0, sticky='w', padx=5, pady=5)
-
-        tariff_balance_subframe = ttk.Frame(main_frame)
-        tariff_balance_subframe.grid(row=current_row, column=1, sticky='we')
-
-        self.tariff_entry = ttk.Combobox(tariff_balance_subframe, state="readonly", values=self._get_tariffs(),
-                                         width=20)
-        self.tariff_entry.pack(side='left', padx=5)
-
-        ttk.Label(tariff_balance_subframe, text="Баланс абонента:").pack(side='left', padx=5)
-        self.balance_entry = ttk.Entry(tariff_balance_subframe, width=10)
-        self.balance_entry.pack(side='left', padx=5)
-
-        current_row += 1
-
-        ttk.Label(main_frame, text="Статус:").grid(row=current_row, column=0, sticky='w', padx=5, pady=5)
-
-        status_set_subframe = ttk.Frame(main_frame)
-        status_set_subframe.grid(row=current_row, column=1, sticky='we')
-
-        self.status_list = [StatusClientEnum.CONNECTING.value, StatusClientEnum.PAUSE.value,
-                            StatusClientEnum.DISCONNECTING.value]
-        self.combo_status = ttk.Combobox(status_set_subframe, state="readonly",
-                                         values=self.status_list)
-        self.combo_status.pack(side='left', padx=5)
-
-        ttk.Label(status_set_subframe, text="Дата изменения статуса:").pack(side='left', padx=5)
-
-        self.status_date_entry = DateEntry(status_set_subframe, date_pattern="dd.mm.yyyy")
-        self.status_date_entry.pack(side='left', padx=5, )
-        current_row += 1
-
-        ttk.Label(main_frame, text="Дата подключения:").grid(row=current_row, column=0, sticky='w', padx=5, pady=5)
-        self.connect_date_entry = DateEntry(main_frame, date_pattern="dd.mm.yyyy", width=20)
-        self.connect_date_entry.grid(row=current_row, column=1, sticky='w', padx=5, pady=5)  # sticky='w'
-        current_row += 1
-
-        passport_frame = ttk.LabelFrame(main_frame, text="Паспортные данные")
-        passport_frame.grid(row=current_row, column=0, columnspan=2, sticky='we', padx=5, pady=10)
-
-        p_row = 0  # Локальный счетчик для фрейма
-        ttk.Label(passport_frame, text="Серия и номер:").grid(row=p_row, column=0, sticky='w', padx=5, pady=5)
-        self.passport_ser_num = ttk.Entry(passport_frame)
-        self.passport_ser_num.grid(row=p_row, column=1, sticky='we', padx=5, pady=5)
-        passport_frame.columnconfigure(1, weight=1)  # Растягиваем поле ввода
-        p_row += 1
-
-        ttk.Label(passport_frame, text="Дата выдачи:").grid(row=current_row, column=0, sticky='w', padx=5, pady=5)
-        self.passport_data = ttk.Entry(passport_frame)
-        self.passport_data.grid(row=current_row, column=1, sticky='we', padx=5, pady=5)
-        current_row += 1
-
-        ttk.Label(passport_frame, text="Кем выдан:").grid(row=current_row, column=0, sticky='w', padx=5, pady=5)
-        self.passport_how = ttk.Entry(passport_frame)
-        self.passport_how.grid(row=current_row, column=1, sticky='we', padx=5, pady=5)
-        current_row += 1
-
-        accruals_frame = ttk.LabelFrame(main_frame, text="Список начислений")
-        accruals_frame.grid(row=current_row, column=0, columnspan=2, sticky='we', padx=5, pady=10)
-
-        accruals_frame.columnconfigure(0, weight=1)
-        accruals_frame.rowconfigure(0, weight=1)
-
-        cols = ('date', 'amount', 'per_month')
-        self.tree_accruals = ttk.Treeview(accruals_frame, columns=cols, show='headings', height=5)
-
-        # Настраиваем заголовки
-        self.tree_accruals.heading('date', text='Дата')
-        self.tree_accruals.heading('amount', text='Сумма')
-        self.tree_accruals.heading('per_month', text='За месяц')
-
-        # Настраиваем ширину колонок
-        self.tree_accruals.column('date', width=100, anchor='center')
-        self.tree_accruals.column('amount', width=100, anchor='center')
-        self.tree_accruals.column('per_month', width=150, anchor='center')
-
-        scrollbar = ttk.Scrollbar(accruals_frame, orient="vertical", command=self.tree_accruals.yview)
-        self.tree_accruals.configure(yscrollcommand=scrollbar.set)
-
-        self.tree_accruals.grid(row=0, column=0, sticky='nsew')
-        scrollbar.grid(row=0, column=1, sticky='ns')
-
-        current_row += 1
-
-        accruals_set_subframe = (ttk.Frame(accruals_frame))
-        accruals_set_subframe.grid(row=current_row, column=0, sticky='we', padx=5, pady=5)
-        ttk.Label(accruals_set_subframe, text="Начислить абоненту:").pack(side='left')
-        self.services_list = self._get_all_services()
-        self.combo_services = ttk.Combobox(accruals_set_subframe, state='readonly', values=self.services_list)
-        self.combo_services.current(0)
-        self.combo_services.pack(side='left', fill='x', padx=5, pady=5)
-        ttk.Button(accruals_set_subframe, text="Начислить", command=self._accrual_service).pack(side='left')
-
-        ttk.Button(accruals_set_subframe, text="Удалить начисление").pack(side='right')
-
-        payments_frame = ttk.LabelFrame(main_frame, text="Список платежей")
-        payments_frame.grid(row=current_row, column=0, columnspan=2, sticky='we', padx=5, pady=10)
-
-        payments_frame.columnconfigure(0, weight=1)
-        payments_frame.rowconfigure(0, weight=1)
-
-        cols = ('id', 'date', 'amount', 'type')
-        self.tree_payments = ttk.Treeview(payments_frame, columns=cols, show='headings', height=5)
-
-        # Настраиваем заголовки
-        self.tree_payments.heading('id', text='ИД')
-        self.tree_payments.heading('date', text='Дата')
-        self.tree_payments.heading('amount', text='Сумма')
-        self.tree_payments.heading('type', text='Тип')
-
-        # Настраиваем ширину колонок
-        self.tree_payments.column('id', width=50, anchor='center')
-        self.tree_payments.column('date', width=50, anchor='center')
-        self.tree_payments.column('amount', width=100, anchor='center')
-        self.tree_payments.column('type', width=150, anchor='center')
-
-        scrollbar = ttk.Scrollbar(payments_frame, orient="vertical", command=self.tree_payments.yview)
-        self.tree_payments.configure(yscrollcommand=scrollbar.set)
-
-        self.tree_payments.grid(row=0, column=0, sticky='nsew')
-        scrollbar.grid(row=0, column=1, sticky='ns')
-
-        current_row += 1
-
-        buttons_frame = ttk.Frame(main_frame)
-        buttons_frame.grid(row=current_row, column=0, columnspan=2, sticky='e',
-                           pady=15)
-
-        self.btn_gen_contract = ttk.Button(buttons_frame, text="Сформировать договор", command=self.generate_contract)
-        self.btn_gen_contract.pack(side='left', padx=5)
-
-        self.btn_gen_app = ttk.Button(buttons_frame, text="Сформировать заявление", command=self.generate_statement)
-        self.btn_gen_app.pack(side='left', padx=5)
-
-        self.btn_ok = ttk.Button(buttons_frame, text="OK", command=self.on_ok)
-        self.btn_ok.pack(side='right', padx=5)
-
-        self.btn_cancel = ttk.Button(buttons_frame, text="Отмена", command=self.on_cancel)
-        self.btn_cancel.pack(side='right', padx=5)
-
-        self.tree_payments.bind("<Double-Button-1>", self._get_receipt_client)
+        self._setup_client_data_frame(client_data_frame)
+        self._setup_accruals_frame(accruals_frame)
+        self._setup_payments_frame(payments_frame)
 
         self.transient(parent)
 
@@ -1959,6 +1807,192 @@ class WindowEditAndViewClient(tkinter.Toplevel):
             messagebox.showerror("Ошибка", f"Не удалось сохранить файл: {e}")
 
         return None
+
+    def _setup_client_data_frame(self, client_data_frame):
+
+        main_frame = ttk.Frame(client_data_frame)
+        main_frame.pack(fill='both', expand=True, padx=10, pady=10)
+        main_frame.columnconfigure(1, weight=1)
+
+        current_row = 0
+
+        ttk.Label(main_frame, text="Лицевой счет:").grid(row=current_row, column=0, sticky='w', padx=5, pady=5)
+        self.personal_account_entry = ttk.Entry(main_frame)
+        self.personal_account_entry.grid(row=current_row, column=1, sticky='we', padx=5, pady=5)
+        current_row += 1
+
+        ttk.Label(main_frame, text="ФИО:").grid(row=current_row, column=0, sticky='w', padx=5, pady=5)
+        self.full_name_entry = ttk.Entry(main_frame)
+        self.full_name_entry.grid(row=current_row, column=1, sticky='we', padx=5, pady=5)
+        current_row += 1
+
+        ttk.Label(main_frame, text="Адрес:").grid(row=current_row, column=0, sticky='nw', padx=5, pady=5)
+        self.text_address = tkinter.Entry(main_frame, width=40)
+        self.text_address.grid(row=current_row, column=1, sticky='we', padx=5, pady=5)
+        current_row += 1
+
+        ttk.Label(main_frame, text="Телефон:").grid(row=current_row, column=0, sticky='nw', padx=5, pady=5)
+        self.phone_entry = ttk.Entry(main_frame, width=40)
+        self.phone_entry.grid(row=current_row, column=1, sticky='we', padx=5, pady=5)
+        current_row += 1
+
+        ttk.Label(main_frame, text="Тариф:").grid(row=current_row, column=0, sticky='w', padx=5, pady=5)
+
+        tariff_balance_subframe = ttk.Frame(main_frame)
+        tariff_balance_subframe.grid(row=current_row, column=1, sticky='we')
+
+        self.tariff_entry = ttk.Combobox(tariff_balance_subframe, state="readonly", values=self._get_tariffs(),
+                                         width=20)
+        self.tariff_entry.pack(side='left', padx=5)
+
+        ttk.Label(tariff_balance_subframe, text="Баланс абонента:").pack(side='left', padx=5)
+        self.balance_entry = ttk.Entry(tariff_balance_subframe, width=10)
+        self.balance_entry.pack(side='left', padx=5)
+
+        current_row += 1
+
+        ttk.Label(main_frame, text="Статус:").grid(row=current_row, column=0, sticky='w', padx=5, pady=5)
+
+        status_set_subframe = ttk.Frame(main_frame)
+        status_set_subframe.grid(row=current_row, column=1, sticky='we')
+
+        self.status_list = [StatusClientEnum.CONNECTING.value, StatusClientEnum.PAUSE.value,
+                            StatusClientEnum.DISCONNECTING.value]
+        self.combo_status = ttk.Combobox(status_set_subframe, state="readonly",
+                                         values=self.status_list)
+        self.combo_status.pack(side='left', padx=5)
+
+        ttk.Label(status_set_subframe, text="Дата изменения статуса:").pack(side='left', padx=5)
+
+        self.status_date_entry = DateEntry(status_set_subframe, date_pattern="dd.mm.yyyy")
+        self.status_date_entry.pack(side='left', padx=5, )
+        current_row += 1
+
+        ttk.Label(main_frame, text="Дата подключения:").grid(row=current_row, column=0, sticky='w', padx=5, pady=5)
+        self.connect_date_entry = DateEntry(main_frame, date_pattern="dd.mm.yyyy", width=20)
+        self.connect_date_entry.grid(row=current_row, column=1, sticky='w', padx=5, pady=5)  # sticky='w'
+        current_row += 1
+
+        passport_frame = ttk.LabelFrame(main_frame, text="Паспортные данные")
+        passport_frame.grid(row=current_row, column=0, columnspan=2, sticky='we', padx=5, pady=10)
+
+        p_row = 0  # Локальный счетчик для фрейма
+        ttk.Label(passport_frame, text="Серия и номер:").grid(row=p_row, column=0, sticky='w', padx=5, pady=5)
+        self.passport_ser_num = ttk.Entry(passport_frame)
+        self.passport_ser_num.grid(row=p_row, column=1, sticky='we', padx=5, pady=5)
+        passport_frame.columnconfigure(1, weight=1)  # Растягиваем поле ввода
+        p_row += 1
+
+        ttk.Label(passport_frame, text="Дата выдачи:").grid(row=current_row, column=0, sticky='w', padx=5, pady=5)
+        self.passport_data = ttk.Entry(passport_frame)
+        self.passport_data.grid(row=current_row, column=1, sticky='we', padx=5, pady=5)
+        current_row += 1
+
+        ttk.Label(passport_frame, text="Кем выдан:").grid(row=current_row, column=0, sticky='w', padx=5, pady=5)
+        self.passport_how = ttk.Entry(passport_frame)
+        self.passport_how.grid(row=current_row, column=1, sticky='we', padx=5, pady=5)
+        current_row += 1
+
+        buttons_frame = ttk.Frame(main_frame)
+        buttons_frame.grid(row=current_row, column=0, columnspan=2, sticky='e',
+                           pady=15)
+
+        self.btn_gen_contract = ttk.Button(buttons_frame, text="Сформировать договор", command=self.generate_contract)
+        self.btn_gen_contract.pack(side='left', padx=5)
+
+        self.btn_gen_app = ttk.Button(buttons_frame, text="Сформировать заявление", command=self.generate_statement)
+        self.btn_gen_app.pack(side='left', padx=5)
+
+        self.btn_ok = ttk.Button(buttons_frame, text="OK", command=self.on_ok)
+        self.btn_ok.pack(side='right', padx=5)
+
+        self.btn_cancel = ttk.Button(buttons_frame, text="Отмена", command=self.on_cancel)
+        self.btn_cancel.pack(side='right', padx=5)
+
+    def _setup_accruals_frame(self, accruals_frame):
+
+        main_frame = ttk.Frame(accruals_frame)
+        main_frame.pack(fill='both', expand=True, padx=10, pady=10)
+        main_frame.columnconfigure(1, weight=1)
+
+        current_row = 0
+
+        accruals_frame = ttk.LabelFrame(main_frame, text="Список начислений")
+        accruals_frame.grid(row=current_row, column=0, columnspan=2, sticky='we', padx=5, pady=10)
+
+        accruals_frame.columnconfigure(0, weight=1)
+        accruals_frame.rowconfigure(0, weight=1)
+
+        cols = ('date', 'amount', 'per_month')
+        self.tree_accruals = ttk.Treeview(accruals_frame, columns=cols, show='headings', height=5)
+
+        # Настраиваем заголовки
+        self.tree_accruals.heading('date', text='Дата')
+        self.tree_accruals.heading('amount', text='Сумма')
+        self.tree_accruals.heading('per_month', text='За месяц')
+
+        # Настраиваем ширину колонок
+        self.tree_accruals.column('date', width=100, anchor='center')
+        self.tree_accruals.column('amount', width=100, anchor='center')
+        self.tree_accruals.column('per_month', width=150, anchor='center')
+
+        scrollbar = ttk.Scrollbar(accruals_frame, orient="vertical", command=self.tree_accruals.yview)
+        self.tree_accruals.configure(yscrollcommand=scrollbar.set)
+
+        self.tree_accruals.grid(row=0, column=0, sticky='nsew')
+        scrollbar.grid(row=0, column=1, sticky='ns')
+
+        current_row += 1
+
+        accruals_set_subframe = (ttk.Frame(accruals_frame))
+        accruals_set_subframe.grid(row=current_row, column=0, sticky='we', padx=5, pady=5)
+        ttk.Label(accruals_set_subframe, text="Начислить абоненту:").pack(side='left')
+        self.services_list = self._get_all_services()
+        self.combo_services = ttk.Combobox(accruals_set_subframe, state='readonly', values=self.services_list)
+        self.combo_services.current(0)
+        self.combo_services.pack(side='left', fill='x', padx=5, pady=5)
+        ttk.Button(accruals_set_subframe, text="Начислить", command=self._accrual_service).pack(side='left')
+
+        ttk.Button(accruals_set_subframe, text="Удалить начисление").pack(side='right')
+
+    def _setup_payments_frame(self, payments_frame):
+
+        main_frame = ttk.Frame(payments_frame)
+        main_frame.pack(fill='both', expand=True, padx=10, pady=10)
+        main_frame.columnconfigure(1, weight=1)
+
+        current_row = 0
+
+        payments_frame = ttk.LabelFrame(main_frame, text="Список платежей")
+        payments_frame.grid(row=current_row, column=0, columnspan=2, sticky='we', padx=5, pady=10)
+
+        payments_frame.columnconfigure(0, weight=1)
+        payments_frame.rowconfigure(0, weight=1)
+
+        cols = ('id', 'date', 'amount', 'type')
+        self.tree_payments = ttk.Treeview(payments_frame, columns=cols, show='headings', height=5)
+
+        # Настраиваем заголовки
+        self.tree_payments.heading('id', text='ИД')
+        self.tree_payments.heading('date', text='Дата')
+        self.tree_payments.heading('amount', text='Сумма')
+        self.tree_payments.heading('type', text='Тип')
+
+        # Настраиваем ширину колонок
+        self.tree_payments.column('id', width=50, anchor='center')
+        self.tree_payments.column('date', width=50, anchor='center')
+        self.tree_payments.column('amount', width=100, anchor='center')
+        self.tree_payments.column('type', width=150, anchor='center')
+
+        scrollbar = ttk.Scrollbar(payments_frame, orient="vertical", command=self.tree_payments.yview)
+        self.tree_payments.configure(yscrollcommand=scrollbar.set)
+
+        self.tree_payments.grid(row=0, column=0, sticky='nsew')
+        scrollbar.grid(row=0, column=1, sticky='ns')
+
+        current_row += 1
+
+        self.tree_payments.bind("<Double-Button-1>", self._get_receipt_client)
 
 
 class WindowReport(tkinter.Toplevel):
