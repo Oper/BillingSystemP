@@ -1924,7 +1924,7 @@ class WindowEditAndViewClient(tkinter.Toplevel):
         accruals_frame.rowconfigure(0, weight=1)
 
         cols = ('date', 'amount', 'per_month')
-        self.tree_accruals = ttk.Treeview(accruals_frame, columns=cols, show='headings', height=5)
+        self.tree_accruals = ttk.Treeview(accruals_frame, columns=cols, show='headings', height=13)
 
         # Настраиваем заголовки
         self.tree_accruals.heading('date', text='Дата')
@@ -1957,40 +1957,40 @@ class WindowEditAndViewClient(tkinter.Toplevel):
 
     def _setup_payments_frame(self, payments_frame):
 
-        main_frame = ttk.Frame(payments_frame)
-        main_frame.pack(fill='both', expand=True, padx=10, pady=10)
-        main_frame.columnconfigure(1, weight=1)
-
-        current_row = 0
-
-        payments_frame = ttk.LabelFrame(main_frame, text="Список платежей")
-        payments_frame.grid(row=current_row, column=0, columnspan=2, sticky='we', padx=5, pady=10)
-
         payments_frame.columnconfigure(0, weight=1)
         payments_frame.rowconfigure(0, weight=1)
 
-        cols = ('id', 'date', 'amount', 'type')
-        self.tree_payments = ttk.Treeview(payments_frame, columns=cols, show='headings', height=5)
+        main_frame = ttk.Frame(payments_frame)
+        main_frame.pack(fill='both', expand=True, padx=10, pady=10)
 
-        # Настраиваем заголовки
+        main_frame.columnconfigure(0, weight=1)
+        main_frame.rowconfigure(0, weight=1)
+
+        list_container = ttk.LabelFrame(main_frame, text="Список платежей")
+        list_container.grid(row=0, column=0, sticky='nsew')
+
+        list_container.columnconfigure(0, weight=1)
+        list_container.rowconfigure(0, weight=1)
+
+        cols = ('id', 'date', 'amount', 'type')
+        self.tree_payments = ttk.Treeview(list_container, columns=cols, show='headings')
+
         self.tree_payments.heading('id', text='ИД')
+        self.tree_payments.column('id', width=50, anchor='center')
         self.tree_payments.heading('date', text='Дата')
         self.tree_payments.heading('amount', text='Сумма')
         self.tree_payments.heading('type', text='Тип')
 
-        # Настраиваем ширину колонок
         self.tree_payments.column('id', width=50, anchor='center')
         self.tree_payments.column('date', width=50, anchor='center')
         self.tree_payments.column('amount', width=100, anchor='center')
         self.tree_payments.column('type', width=150, anchor='center')
 
-        scrollbar = ttk.Scrollbar(payments_frame, orient="vertical", command=self.tree_payments.yview)
+        scrollbar = ttk.Scrollbar(list_container, orient="vertical", command=self.tree_payments.yview)
         self.tree_payments.configure(yscrollcommand=scrollbar.set)
 
         self.tree_payments.grid(row=0, column=0, sticky='nsew')
         scrollbar.grid(row=0, column=1, sticky='ns')
-
-        current_row += 1
 
         self.tree_payments.bind("<Double-Button-1>", self._get_receipt_client)
 
